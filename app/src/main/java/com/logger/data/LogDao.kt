@@ -11,11 +11,11 @@ interface LogDao {
     @Insert
     suspend fun insertLog(entry: LogEntry)
 
-    @Query("SELECT * FROM log_entries ORDER BY timestamp DESC")
-    fun getAllLogs(): Flow<List<LogEntry>>
+    @Query("SELECT * FROM log_entries WHERE timestamp BETWEEN :startTimestamp AND :endTimestamp ORDER BY timestamp DESC")
+    fun getAllLogs(startTimestamp: Long, endTimestamp: Long): Flow<List<LogEntry>>
 
-    @Query("SELECT * FROM log_entries WHERE eventType = :type ORDER BY timestamp DESC")
-    fun getLogsByType(type: String): Flow<List<LogEntry>>
+    @Query("SELECT * FROM log_entries WHERE eventType = :type AND timestamp BETWEEN :startTimestamp AND :endTimestamp ORDER BY timestamp DESC")
+    fun getLogsByType(type: String, startTimestamp: Long, endTimestamp: Long): Flow<List<LogEntry>>
 
     @Query("DELETE FROM log_entries")
     suspend fun clearAllLogs()

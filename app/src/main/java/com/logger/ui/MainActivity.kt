@@ -12,9 +12,11 @@ import android.view.View
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.util.Pair
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.chip.Chip
+import com.google.android.material.datepicker.MaterialDatePicker
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 import com.logger.LoggerApp
@@ -24,21 +26,41 @@ import com.logger.databinding.ActivityMainBinding
 import com.logger.service.LoggerForegroundService
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import java.util.Calendar
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private lateinit var logAdapter: LogAdapter
     private var currentFilter: String? = null
+    
+    // Default to the start and end of the current day
+    private var currentStartTimestamp: Long = 0L
+    private var currentEndTimestamp: Long = 0L
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        // Initialize to today's bounds
+        val calendar = Calendar.getInstance()
+        calendar.set(Calendar.HOUR_OF_DAY, 0)
+        calendar.set(Calendar.MINUTE, 0)
+        calendar.set(Calendar.SECOND, 0)
+        calendar.set(Calendar.MILLISECOND, 0)
+        currentStartTimestamp = calendar.timeInMillis
+        
+        calendar.set(Calendar.HOUR_OF_DAY, 23)
+        calendar.set(Calendar.MINUTE, 59)
+        calendar.set(Calendar.SECOND, 59)
+        calendar.set(Calendar.MILLISECOND, 999)
+        currentEndTimestamp = calendar.timeInMillis
+
         setupToolbar()
         setupRecyclerView()
         setupFilterChips()
+        setupDatePicker()
         checkPermissions()
     }
 
@@ -84,13 +106,42 @@ class MainActivity : AppCompatActivity() {
         observeLogs()
     }
 
+    private fun setupDatePicker() {
+        binding.btnDateRange.setOnClickListener {
+            val datePicker = MaterialDatePicker.Builder.dateRangePicker()
+                .setTitleText("Select Date Range")
+                .setSelection(
+                    Pair(currentStartTimestamp, currentEndTimestamp)
+                )
+                .build()
+
+            datePicker.addOnPositiveButtonClickListener { selection ->
+                // The selection gives timestamps in UTC at 00:00:00 of the selected days.
+                // We convert the end date to 23:59:59.999 of that specific day.
+                currentStartTimestamp = selection.first
+                
+                val endCalendar = Calendar.getInstance()
+                endCalendar.timeInMillis = selection.second
+                endCalendar.set(Calendar.HOUR_OF_DAY, 23)
+                endCalendar.set(Calendar.MINUTE, 59)
+                endCalendar.set(Calendar.SECOND, 59)
+                endCalendar.set(Calendar.MILLISECOND, 999)
+                currentEndTimestamp = endCalendar.timeInMillis
+                
+                observeLogs()
+            }
+
+            datePicker.show(supportFragmentManager, "DATE_PICKER")
+        }
+    }
+
     private fun observeLogs() {
         val dao = (application as LoggerApp).database.logDao()
         lifecycleScope.launch {
             val flow = if (currentFilter != null) {
-                dao.getLogsByType(currentFilter!!)
+                dao.getLogsByType(currentFilter!!, currentStartTimestamp, currentEndTimestamp)
             } else {
-                dao.getAllLogs()
+                dao.getAllLogs(currentStartTimestamp, currentEndTimestamp)
             }
             flow.collectLatest { logs ->
                 logAdapter.submitList(logs)
