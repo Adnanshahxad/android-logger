@@ -16,7 +16,7 @@
         <item name="android:statusBarColor">#9CB63A</item>
         
         <!-- Strictly white backgrounds everywhere -->
-        <item name="android:background">#FFFFFF</item>
+        <item name="android:windowBackground">#FFFFFF</item>
         <item name="colorSurface">#FFFFFF</item>
         <item name="colorOnSurface">#000000</item>
         <item name="colorSurfaceVariant">#F0F0F0</item>

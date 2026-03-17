@@ -48,7 +48,6 @@
             android:text="Delete All Logs"
             style="@style/Widget.Material3.Button.OutlinedButton"
             android:textColor="?attr/colorError"
-            app:strokeColor="?attr/colorError"
             android:layout_marginBottom="32dp" />
 
         <TextView
