@@ -3,6 +3,7 @@ package com.logger.ui
 import android.app.AppOpsManager
 import android.content.Context
 import android.content.Intent
+import com.logger.ui.SettingsActivity
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -29,7 +30,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private lateinit var logAdapter: LogAdapter
     private var currentFilter: String? = null
-    private var isServiceRunning = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -39,13 +39,27 @@ class MainActivity : AppCompatActivity() {
         setupToolbar()
         setupRecyclerView()
         setupFilterChips()
-        setupFab()
         checkPermissions()
     }
 
     private fun setupToolbar() {
         setSupportActionBar(binding.toolbar)
         supportActionBar?.title = "Android Sys"
+        
+    override fun onCreateOptionsMenu(menu: android.view.Menu?): Boolean {
+        menuInflater.inflate(R.menu.menu_main, menu)
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: android.view.MenuItem): Boolean {
+        return when (item.itemId) {
+            R.id.action_settings -> {
+                startActivity(Intent(this, SettingsActivity::class.java))
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
+        }
+    }
     }
 
     private fun setupRecyclerView() {
@@ -86,39 +100,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun setupFab() {
-        // Toggle service button
-        binding.fabToggleService.setOnClickListener {
-            if (isServiceRunning) {
-                LoggerForegroundService.stop(this)
-                isServiceRunning = false
-                binding.fabToggleService.setImageResource(R.drawable.ic_play)
-                Snackbar.make(binding.root, "Logger stopped", Snackbar.LENGTH_SHORT).show()
-            } else {
-                LoggerForegroundService.start(this)
-                isServiceRunning = true
-                binding.fabToggleService.setImageResource(R.drawable.ic_stop)
-                Snackbar.make(binding.root, "Logger started", Snackbar.LENGTH_SHORT).show()
-            }
-        }
-
-        // Clear logs button
-        binding.fabClearLogs.setOnClickListener {
-            MaterialAlertDialogBuilder(this)
-                .setTitle("Clear All Logs")
-                .setMessage("Are you sure you want to delete all log entries?")
-                .setPositiveButton("Clear") { _, _ ->
-                    lifecycleScope.launch {
-                        (application as LoggerApp).database.logDao().clearAllLogs()
-                        Snackbar.make(binding.root, "Logs cleared", Snackbar.LENGTH_SHORT).show()
-                    }
-                }
-                .setNegativeButton("Cancel", null)
-                .show()
-        }
-    }
-
-    // ─── Permissions ─────────────────────────────────────────────────
+    // ─── Permissions & Initial Service Start ─────────────────────────
 
     private fun checkPermissions() {
         // 1. Check Usage Stats permission
@@ -144,15 +126,14 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         // Re-check after returning from settings
-        if (hasUsageStatsPermission() && !isServiceRunning) {
+        if (hasUsageStatsPermission() && !SettingsActivity.isServiceRunning) {
             startLogging()
         }
     }
 
     private fun startLogging() {
         LoggerForegroundService.start(this)
-        isServiceRunning = true
-        binding.fabToggleService.setImageResource(R.drawable.ic_stop)
+        SettingsActivity.isServiceRunning = true
     }
 
     private fun hasUsageStatsPermission(): Boolean {

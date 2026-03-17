@@ -36,18 +36,6 @@ class LoggerForegroundService : Service() {
         private const val NOTIFICATION_ID = 1
         private const val POLL_INTERVAL_MS = 5000L // Increased to 5s to save battery
 
-        // Only log events from these specific packages
-        private val TARGET_PACKAGES = setOf(
-            "com.zhiliaoapp.musically",      // TikTok
-            "com.ss.android.ugc.trill",      // TikTok (Global)
-            "com.facebook.katana",           // Facebook
-            "com.facebook.lite",             // Facebook Lite
-            "com.whatsapp",                  // WhatsApp
-            "com.whatsapp.w4b",              // WhatsApp Business
-            "com.instagram.android",         // Instagram
-            "com.android.chrome"             // Google Chrome
-        )
-
         fun start(context: Context) {
             val intent = Intent(context, LoggerForegroundService::class.java)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -175,16 +163,17 @@ class LoggerForegroundService : Service() {
         val events = usageStatsManager.queryEvents(lastEventTime, now)
         lastEventTime = now
 
+        val settingsManager = com.logger.data.SettingsManager(this)
+        val excludedPackages = settingsManager.getExcludedPackages()
+
         val event = UsageEvents.Event()
         while (events.hasNextEvent()) {
             events.getNextEvent(event)
 
             val pkg = event.packageName
             
-            // Focus events trigger frequently, we still want to track when our target app loses focus
-            // But we ignore ALL events that are not related to our target packages, except when
-            // our tracked target app is losing focus to a non-tracked app.
-            val isTargetApp = TARGET_PACKAGES.contains(pkg)
+            // We ignore ALL events that are in our exclusion list.
+            val isLoggedApp = !excludedPackages.contains(pkg)
 
             val friendlyName = getAppName(pkg)
 
@@ -193,8 +182,8 @@ class LoggerForegroundService : Service() {
                     // App came to foreground (opened / got focus)
                     if (pkg != lastForegroundPackage) {
                         
-                        // 1. Log previous app closing IF it was a target app
-                        if (lastForegroundPackage != null && TARGET_PACKAGES.contains(lastForegroundPackage!!)) {
+                        // 1. Log previous app closing IF it was a logged app
+                        if (lastForegroundPackage != null && !excludedPackages.contains(lastForegroundPackage!!)) {
                             val closedEntry = LogEntry(
                                 eventType = LogEntry.TYPE_APP_CLOSED,
                                 details = lastForegroundPackage!!,
@@ -204,8 +193,8 @@ class LoggerForegroundService : Service() {
                             getDao().insertLog(closedEntry)
                         }
 
-                        // 2. Log new app opening & focus IF it is a target app
-                        if (isTargetApp) {
+                        // 2. Log new app opening & focus IF it is a logged app
+                        if (isLoggedApp) {
                             val openedEntry = LogEntry(
                                 eventType = LogEntry.TYPE_APP_OPENED,
                                 details = pkg,
@@ -230,8 +219,8 @@ class LoggerForegroundService : Service() {
                 UsageEvents.Event.ACTIVITY_PAUSED -> {
                     // App went to background
                     if (pkg == lastForegroundPackage) {
-                        // Only log if it's one of our target apps
-                        if (isTargetApp) {
+                        // Only log if it's one of our logged apps
+                        if (isLoggedApp) {
                             val closedEntry = LogEntry(
                                 eventType = LogEntry.TYPE_APP_CLOSED,
                                 details = pkg,
@@ -248,29 +237,17 @@ class LoggerForegroundService : Service() {
     }
 
     private fun getAppName(packageName: String): String {
-        // Hardcode friendly names for the target packages to avoid System API overhead if possible
-        return when (packageName) {
-            "com.zhiliaoapp.musically", "com.ss.android.ugc.trill" -> "TikTok"
-            "com.facebook.katana" -> "Facebook"
-            "com.facebook.lite" -> "Facebook Lite"
-            "com.whatsapp" -> "WhatsApp"
-            "com.whatsapp.w4b" -> "WhatsApp Business"
-            "com.instagram.android" -> "Instagram"
-            "com.android.chrome" -> "Google Chrome"
-            else -> {
-                try {
-                    val pm = packageManager
-                    val appInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        pm.getApplicationInfo(packageName, PackageManager.ApplicationInfoFlags.of(0))
-                    } else {
-                        @Suppress("DEPRECATION")
-                        pm.getApplicationInfo(packageName, 0)
-                    }
-                    pm.getApplicationLabel(appInfo).toString()
-                } catch (_: Exception) {
-                    packageName
-                }
+        return try {
+            val pm = packageManager
+            val appInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                pm.getApplicationInfo(packageName, PackageManager.ApplicationInfoFlags.of(0))
+            } else {
+                @Suppress("DEPRECATION")
+                pm.getApplicationInfo(packageName, 0)
             }
+            pm.getApplicationLabel(appInfo).toString()
+        } catch (_: Exception) {
+            packageName
         }
     }
 
