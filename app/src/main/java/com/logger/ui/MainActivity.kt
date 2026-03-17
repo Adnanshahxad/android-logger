@@ -8,14 +8,13 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
-import android.view.View
+import android.widget.ArrayAdapter
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.util.Pair
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.google.android.material.chip.Chip
 import com.google.android.material.datepicker.MaterialDatePicker
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
@@ -32,7 +31,10 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private lateinit var logAdapter: LogAdapter
-    private var currentFilter: String? = null
+    
+    // Track selected filters
+    private var currentTypeFilter: String? = null
+    private var currentPackageFilter: String? = null
     
     // Default to the start and end of the current day
     private var currentStartTimestamp: Long = 0L
@@ -59,7 +61,7 @@ class MainActivity : AppCompatActivity() {
 
         setupToolbar()
         setupRecyclerView()
-        setupFilterChips()
+        setupDropdownFilters()
         checkPermissions()
     }
 
@@ -96,17 +98,48 @@ class MainActivity : AppCompatActivity() {
         observeLogs()
     }
 
-    private fun setupFilterChips() {
-        binding.chipAll.setOnClickListener { applyFilter(null) }
-        binding.chipAuth.setOnClickListener { applyFilter(LogEntry.TYPE_AUTH_UNLOCK) }
-        binding.chipAppOpen.setOnClickListener { applyFilter(LogEntry.TYPE_APP_OPENED) }
-        binding.chipAppClose.setOnClickListener { applyFilter(LogEntry.TYPE_APP_CLOSED) }
-        binding.chipFocus.setOnClickListener { applyFilter(LogEntry.TYPE_APP_FOCUS) }
-    }
+    private fun setupDropdownFilters() {
+        val eventTypes = arrayOf("All Logs", "Unlocks", "App Opens", "App Closes", "App Focus")
+        val typeMap = mapOf(
+            "All Logs" to null,
+            "Unlocks" to LogEntry.TYPE_AUTH_UNLOCK,
+            "App Opens" to LogEntry.TYPE_APP_OPENED,
+            "App Closes" to LogEntry.TYPE_APP_CLOSED,
+            "App Focus" to LogEntry.TYPE_APP_FOCUS
+        )
 
-    private fun applyFilter(type: String?) {
-        currentFilter = type
-        observeLogs()
+        val typeAdapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, eventTypes)
+        binding.dropdownEventType.setAdapter(typeAdapter)
+
+        binding.dropdownEventType.setOnItemClickListener { _, _, position, _ ->
+            val selection = eventTypes[position]
+            currentTypeFilter = typeMap[selection]
+            observeLogs()
+        }
+
+        // Setup Package filter
+        val dao = (application as LoggerApp).database.logDao()
+        lifecycleScope.launch {
+            dao.getDistinctPackages().collectLatest { packages ->
+                // "All Packages" is the default first option
+                val displayList = mutableListOf("All Packages")
+                displayList.addAll(packages)
+
+                val pkgAdapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_dropdown_item_1line, displayList)
+                binding.dropdownPackage.setAdapter(pkgAdapter)
+
+                // Re-select value if options update out from under the user
+                if (currentPackageFilter == null) {
+                    binding.dropdownPackage.setText("All Packages", false)
+                }
+            }
+        }
+
+        binding.dropdownPackage.setOnItemClickListener { _, _, position, _ ->
+            val selection = binding.dropdownPackage.adapter.getItem(position) as String
+            currentPackageFilter = if (selection == "All Packages") null else selection
+            observeLogs()
+        }
     }
 
     private fun showDatePickerMenu() {
@@ -139,15 +172,15 @@ class MainActivity : AppCompatActivity() {
     private fun observeLogs() {
         val dao = (application as LoggerApp).database.logDao()
         lifecycleScope.launch {
-            val flow = if (currentFilter != null) {
-                dao.getLogsByType(currentFilter!!, currentStartTimestamp, currentEndTimestamp)
-            } else {
-                dao.getAllLogs(currentStartTimestamp, currentEndTimestamp)
-            }
-            flow.collectLatest { logs ->
+            dao.getFilteredLogs(
+                type = currentTypeFilter,
+                pkg = currentPackageFilter,
+                startTimestamp = currentStartTimestamp,
+                endTimestamp = currentEndTimestamp
+            ).collectLatest { logs ->
                 logAdapter.submitList(logs)
-                binding.emptyView.visibility = if (logs.isEmpty()) View.VISIBLE else View.GONE
-                binding.recyclerViewLogs.visibility = if (logs.isEmpty()) View.GONE else View.VISIBLE
+                binding.emptyView.visibility = if (logs.isEmpty()) android.view.View.VISIBLE else android.view.View.GONE
+                binding.recyclerViewLogs.visibility = if (logs.isEmpty()) android.view.View.GONE else android.view.View.VISIBLE
             }
         }
     }

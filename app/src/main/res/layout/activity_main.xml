@@ -17,58 +17,46 @@
             android:background="?attr/colorPrimary"
             app:titleTextColor="?attr/colorOnPrimary" />
 
-        <HorizontalScrollView
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:orientation="horizontal"
             android:paddingHorizontal="16dp"
             android:paddingVertical="8dp"
-            android:scrollbars="none"
             android:background="?attr/colorSurface">
 
-            <com.google.android.material.chip.ChipGroup
-                android:id="@+id/chipGroup"
-                android:layout_width="wrap_content"
+            <com.google.android.material.textfield.TextInputLayout
+                style="@style/Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                app:singleSelection="true">
+                android:layout_weight="1"
+                android:layout_marginEnd="8dp"
+                android:hint="Event Type">
 
-                <com.google.android.material.chip.Chip
-                    android:id="@+id/chip_all"
-                    style="@style/Widget.Material3.Chip.Filter"
-                    android:layout_width="wrap_content"
+                <AutoCompleteTextView
+                    android:id="@+id/dropdownEventType"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:checked="true"
+                    android:inputType="none"
                     android:text="All Logs" />
+            </com.google.android.material.textfield.TextInputLayout>
 
-                <com.google.android.material.chip.Chip
-                    android:id="@+id/chip_auth"
-                    style="@style/Widget.Material3.Chip.Filter"
-                    android:layout_width="wrap_content"
+            <com.google.android.material.textfield.TextInputLayout
+                style="@style/Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:hint="Package">
+
+                <AutoCompleteTextView
+                    android:id="@+id/dropdownPackage"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Unlocks" />
+                    android:inputType="none"
+                    android:text="All Packages" />
+            </com.google.android.material.textfield.TextInputLayout>
 
-                <com.google.android.material.chip.Chip
-                    android:id="@+id/chip_app_open"
-                    style="@style/Widget.Material3.Chip.Filter"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="App Opens" />
-
-                <com.google.android.material.chip.Chip
-                    android:id="@+id/chip_app_close"
-                    style="@style/Widget.Material3.Chip.Filter"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="App Closes" />
-
-                <com.google.android.material.chip.Chip
-                    android:id="@+id/chip_focus"
-                    style="@style/Widget.Material3.Chip.Filter"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="App Focus" />
-
-            </com.google.android.material.chip.ChipGroup>
-        </HorizontalScrollView>
+        </LinearLayout>
 
     </com.google.android.material.appbar.AppBarLayout>
 
