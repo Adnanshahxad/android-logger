@@ -64,6 +64,10 @@ class LoggerForegroundService : Service() {
                     Log.d(TAG, "Screen on, resuming tracking loop")
                     startPolling()
                 }
+                Intent.ACTION_USER_PRESENT -> {
+                    Log.d(TAG, "Device unlocked detected via OS broadcast!")
+                    logUnlockEvent(context)
+                }
             }
         }
     }
@@ -82,6 +86,7 @@ class LoggerForegroundService : Service() {
         val filter = android.content.IntentFilter().apply {
             addAction(Intent.ACTION_SCREEN_ON)
             addAction(Intent.ACTION_SCREEN_OFF)
+            addAction(Intent.ACTION_USER_PRESENT)
         }
         registerReceiver(screenStateReceiver, filter)
 
@@ -258,4 +263,42 @@ class LoggerForegroundService : Service() {
     }
 
     private fun getDao() = (application as LoggerApp).database.logDao()
+
+    // ─── Unlock Detection ───────────────────────────────────────────
+
+    private fun logUnlockEvent(context: Context) {
+        serviceScope.launch {
+            val authMethod = detectAuthMethod(context)
+            val entry = LogEntry(
+                eventType = LogEntry.TYPE_AUTH_UNLOCK,
+                details = authMethod,
+                timestamp = System.currentTimeMillis()
+            )
+            getDao().insertLog(entry)
+            Log.d(TAG, "Logged unlock: $authMethod")
+        }
+    }
+
+    private fun detectAuthMethod(context: Context): String {
+        val biometricManager = BiometricManager.from(context)
+
+        val hasBiometricStrong = biometricManager.canAuthenticate(
+            BiometricManager.Authenticators.BIOMETRIC_STRONG
+        ) == BiometricManager.BIOMETRIC_SUCCESS
+
+        val hasBiometricWeak = biometricManager.canAuthenticate(
+            BiometricManager.Authenticators.BIOMETRIC_WEAK
+        ) == BiometricManager.BIOMETRIC_SUCCESS
+
+        val hasDeviceCredential = biometricManager.canAuthenticate(
+            BiometricManager.Authenticators.DEVICE_CREDENTIAL
+        ) == BiometricManager.BIOMETRIC_SUCCESS
+
+        return when {
+            hasBiometricStrong -> "Biometric (Fingerprint/Face - Strong)"
+            hasBiometricWeak -> "Biometric (Weak)"
+            hasDeviceCredential -> "Device Credential (PIN/Pattern/Password)"
+            else -> "Screen Unlocked"
+        }
+    }
 }
