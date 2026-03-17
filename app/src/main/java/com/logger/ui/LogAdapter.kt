@@ -11,6 +11,7 @@ import com.logger.databinding.ItemLogBinding
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.concurrent.TimeUnit
 
 class LogAdapter : ListAdapter<LogEntry, LogAdapter.LogViewHolder>(LogDiffCallback()) {
 
@@ -77,6 +78,26 @@ class LogAdapter : ListAdapter<LogEntry, LogAdapter.LogViewHolder>(LogDiffCallba
 
             // Timestamp
             binding.textTimestamp.text = dateFormat.format(Date(entry.timestamp))
+
+            // Duration
+            if (entry.durationMillis != null && entry.durationMillis > 0) {
+                binding.textDuration.text = formatDuration(entry.durationMillis)
+                binding.textDuration.visibility = android.view.View.VISIBLE
+            } else {
+                binding.textDuration.visibility = android.view.View.GONE
+            }
+        }
+
+        private fun formatDuration(millis: Long): String {
+            val hours = TimeUnit.MILLISECONDS.toHours(millis)
+            val minutes = TimeUnit.MILLISECONDS.toMinutes(millis) - TimeUnit.HOURS.toMinutes(hours)
+            val seconds = TimeUnit.MILLISECONDS.toSeconds(millis) - TimeUnit.MINUTES.toSeconds(TimeUnit.MILLISECONDS.toMinutes(millis))
+            
+            return when {
+                hours > 0 -> String.format("%dh %02dm %02ds", hours, minutes, seconds)
+                minutes > 0 -> String.format("%dm %02ds", minutes, seconds)
+                else -> String.format("%ds", seconds)
+            }
         }
     }
 

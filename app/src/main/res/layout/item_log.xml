@@ -82,6 +82,22 @@
             app:layout_constraintTop_toBottomOf="@id/text_details"
             tools:text="com.whatsapp" />
 
+        <TextView
+            android:id="@+id/text_duration"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:background="@drawable/bg_circle"
+            android:backgroundTint="?attr/colorSecondaryContainer"
+            android:paddingHorizontal="6dp"
+            android:paddingVertical="2dp"
+            android:textAppearance="?attr/textAppearanceBodySmall"
+            android:textColor="?attr/colorOnSecondaryContainer"
+            android:textStyle="bold"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            tools:text="2m 14s" />
+
     </androidx.constraintlayout.widget.ConstraintLayout>
 
 </com.google.android.material.card.MaterialCardView>

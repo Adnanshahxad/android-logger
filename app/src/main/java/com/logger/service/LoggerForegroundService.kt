@@ -71,6 +71,7 @@ class LoggerForegroundService : Service() {
     // State tracking
     private var lastForegroundPackage: String? = null
     private var lastEventTime: Long = System.currentTimeMillis()
+    private var lastForegroundStartTime: Long = 0L
     private var wasDeviceLocked: Boolean = true
 
     override fun onCreate() {
@@ -184,10 +185,12 @@ class LoggerForegroundService : Service() {
                         
                         // 1. Log previous app closing IF it was a logged app
                         if (lastForegroundPackage != null && !excludedPackages.contains(lastForegroundPackage!!)) {
+                            val sessionDuration = event.timeStamp - lastForegroundStartTime
                             val closedEntry = LogEntry(
                                 eventType = LogEntry.TYPE_APP_CLOSED,
                                 details = lastForegroundPackage!!,
                                 appName = getAppName(lastForegroundPackage!!),
+                                durationMillis = if (sessionDuration > 0) sessionDuration else null,
                                 timestamp = event.timeStamp
                             )
                             getDao().insertLog(closedEntry)
@@ -213,6 +216,7 @@ class LoggerForegroundService : Service() {
                         }
 
                         lastForegroundPackage = pkg
+                        lastForegroundStartTime = event.timeStamp
                     }
                 }
 
@@ -221,10 +225,12 @@ class LoggerForegroundService : Service() {
                     if (pkg == lastForegroundPackage) {
                         // Only log if it's one of our logged apps
                         if (isLoggedApp) {
+                            val sessionDuration = event.timeStamp - lastForegroundStartTime
                             val closedEntry = LogEntry(
                                 eventType = LogEntry.TYPE_APP_CLOSED,
                                 details = pkg,
                                 appName = friendlyName,
+                                durationMillis = if (sessionDuration > 0) sessionDuration else null,
                                 timestamp = event.timeStamp
                             )
                             getDao().insertLog(closedEntry)

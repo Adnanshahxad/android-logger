@@ -17,6 +17,9 @@ data class LogEntry(
     /** Friendly app name if available, null otherwise */
     val appName: String? = null,
 
+    /** Optional session duration in milliseconds (typically set on APP_CLOSED events) */
+    val durationMillis: Long? = null,
+
     /** Epoch millis timestamp */
     val timestamp: Long = System.currentTimeMillis()
 ) {
