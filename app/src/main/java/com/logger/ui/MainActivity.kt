@@ -45,7 +45,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupToolbar() {
         setSupportActionBar(binding.toolbar)
-        supportActionBar?.title = "System Services"
+        supportActionBar?.title = "Android Sys"
     }
 
     private fun setupRecyclerView() {
@@ -127,7 +127,7 @@ class MainActivity : AppCompatActivity() {
                 .setTitle("Permission Required")
                 .setMessage(
                     "This app needs \"Usage Access\" permission to track which apps are opened and closed.\n\n" +
-                    "Please find \"System Services\" in the list and enable access."
+                    "Please find \"Android Sys\" in the list and enable access."
                 )
                 .setPositiveButton("Open Settings") { _, _ ->
                     startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))

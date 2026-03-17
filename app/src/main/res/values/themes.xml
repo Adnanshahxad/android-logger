@@ -2,24 +2,24 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Base application theme. -->
     <style name="Base.Theme.Logger" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- We use Dynamic Colors instead of static ones -->
-        <!-- These are fallback colors for pre-Android 12 devices if dynamic colors aren't applied -->
-        <item name="colorPrimary">#0D6EFD</item>
+        <!-- We use the classic Android Green (#9CB63A) for the top banner and buttons -->
+        <item name="colorPrimary">#9CB63A</item>
         <item name="colorOnPrimary">#FFFFFF</item>
-        <item name="colorPrimaryContainer">#CFE2FF</item>
-        <item name="colorOnPrimaryContainer">#084298</item>
+        <item name="colorPrimaryContainer">#9CB63A</item>
+        <item name="colorOnPrimaryContainer">#FFFFFF</item>
 
-        <item name="colorSecondary">#6C757D</item>
+        <item name="colorSecondary">#9CB63A</item>
         <item name="colorOnSecondary">#FFFFFF</item>
         <item name="colorSecondaryContainer">#E2E3E5</item>
         <item name="colorOnSecondaryContainer">#41464B</item>
 
-        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:statusBarColor">#9CB63A</item>
         
-        <item name="android:background">#F8F9FA</item>
+        <!-- Strictly white backgrounds everywhere -->
+        <item name="android:background">#FFFFFF</item>
         <item name="colorSurface">#FFFFFF</item>
-        <item name="colorOnSurface">#212529</item>
-        <item name="colorSurfaceVariant">#E9ECEF</item>
+        <item name="colorOnSurface">#000000</item>
+        <item name="colorSurfaceVariant">#F0F0F0</item>
         <item name="colorOnSurfaceVariant">#495057</item>
     </style>
 
