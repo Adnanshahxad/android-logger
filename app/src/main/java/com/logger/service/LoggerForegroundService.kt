@@ -1,5 +1,6 @@
 package com.logger.service
 
+import android.app.KeyguardManager
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -7,13 +8,12 @@ import android.app.PendingIntent
 import android.app.Service
 import android.app.usage.UsageEvents
 import android.app.usage.UsageStatsManager
-import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.IBinder
+import android.os.PowerManager
 import android.util.Log
 import androidx.biometric.BiometricManager
 import androidx.core.app.NotificationCompat
@@ -36,6 +36,18 @@ class LoggerForegroundService : Service() {
         private const val NOTIFICATION_ID = 1
         private const val POLL_INTERVAL_MS = 2000L
 
+        // Only log events from these specific packages
+        private val TARGET_PACKAGES = setOf(
+            "com.zhiliaoapp.musically",      // TikTok
+            "com.ss.android.ugc.trill",      // TikTok (Global)
+            "com.facebook.katana",           // Facebook
+            "com.facebook.lite",             // Facebook Lite
+            "com.whatsapp",                  // WhatsApp
+            "com.whatsapp.w4b",              // WhatsApp Business
+            "com.instagram.android",         // Instagram
+            "com.android.chrome"             // Google Chrome
+        )
+
         fun start(context: Context) {
             val intent = Intent(context, LoggerForegroundService::class.java)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -52,33 +64,22 @@ class LoggerForegroundService : Service() {
 
     private val serviceScope = CoroutineScope(Dispatchers.IO + Job())
     private var pollingJob: Job? = null
+    
+    // State tracking
     private var lastForegroundPackage: String? = null
     private var lastEventTime: Long = System.currentTimeMillis()
-
-    // Unlock detection receiver
-    private val unlockReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action == Intent.ACTION_USER_PRESENT) {
-                Log.d(TAG, "Device unlocked!")
-                logUnlockEvent()
-            }
-        }
-    }
+    private var wasDeviceLocked: Boolean = true
 
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
         startForeground(NOTIFICATION_ID, buildNotification())
 
-        // Register unlock receiver
-        val filter = IntentFilter(Intent.ACTION_USER_PRESENT)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(unlockReceiver, filter, RECEIVER_NOT_EXPORTED)
-        } else {
-            registerReceiver(unlockReceiver, filter)
-        }
+        // Initial lock state
+        val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
+        wasDeviceLocked = keyguardManager?.isKeyguardLocked == true
 
-        // Start polling for app usage
+        // Start polling for app usage and unlock events
         startPolling()
         Log.d(TAG, "Logger service started")
     }
@@ -92,9 +93,6 @@ class LoggerForegroundService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         pollingJob?.cancel()
-        try {
-            unregisterReceiver(unlockReceiver)
-        } catch (_: Exception) {}
         Log.d(TAG, "Logger service stopped")
     }
 
@@ -121,7 +119,7 @@ class LoggerForegroundService : Service() {
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Logger Active")
-            .setContentText("Monitoring device activity...")
+            .setContentText("Monitoring targeted apps and device unlock...")
             .setSmallIcon(R.drawable.ic_monitor)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
@@ -129,19 +127,50 @@ class LoggerForegroundService : Service() {
             .build()
     }
 
-    // ─── Unlock Detection ────────────────────────────────────────────
+    // ─── App Usage & Unlock Polling ───────────────────────────────────
 
-    private fun logUnlockEvent() {
-        serviceScope.launch {
-            val authMethod = detectAuthMethod()
-            val entry = LogEntry(
-                eventType = LogEntry.TYPE_AUTH_UNLOCK,
-                details = authMethod,
-                timestamp = System.currentTimeMillis()
-            )
-            getDao().insertLog(entry)
-            Log.d(TAG, "Logged unlock: $authMethod")
+    private fun startPolling() {
+        pollingJob = serviceScope.launch {
+            while (isActive) {
+                try {
+                    pollDeviceState()
+                    pollAppUsage()
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error during polling", e)
+                }
+                delay(POLL_INTERVAL_MS)
+            }
         }
+    }
+
+    private suspend fun pollDeviceState() {
+        val powerManager = getSystemService(Context.POWER_SERVICE) as? PowerManager
+        val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
+
+        if (powerManager == null || keyguardManager == null) return
+
+        val isScreenOn = powerManager.isInteractive
+        val isLocked = keyguardManager.isKeyguardLocked
+
+        // If the screen is on and the device just went from Locked -> Unlocked
+        if (isScreenOn && wasDeviceLocked && !isLocked) {
+            Log.d(TAG, "Device unlocked detected via polling!")
+            logUnlockEvent()
+        }
+
+        // Update tracking state
+        wasDeviceLocked = isLocked
+    }
+
+    private suspend fun logUnlockEvent() {
+        val authMethod = detectAuthMethod()
+        val entry = LogEntry(
+            eventType = LogEntry.TYPE_AUTH_UNLOCK,
+            details = authMethod,
+            timestamp = System.currentTimeMillis()
+        )
+        getDao().insertLog(entry)
+        Log.d(TAG, "Logged unlock: $authMethod")
     }
 
     private fun detectAuthMethod(): String {
@@ -163,22 +192,7 @@ class LoggerForegroundService : Service() {
             hasBiometricStrong -> "Biometric (Fingerprint/Face - Strong)"
             hasBiometricWeak -> "Biometric (Weak)"
             hasDeviceCredential -> "Device Credential (PIN/Pattern/Password)"
-            else -> "Unknown / None"
-        }
-    }
-
-    // ─── App Usage Polling ───────────────────────────────────────────
-
-    private fun startPolling() {
-        pollingJob = serviceScope.launch {
-            while (isActive) {
-                try {
-                    pollAppUsage()
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error polling usage", e)
-                }
-                delay(POLL_INTERVAL_MS)
-            }
+            else -> "Screen Unlocked"
         }
     }
 
@@ -194,27 +208,22 @@ class LoggerForegroundService : Service() {
         while (events.hasNextEvent()) {
             events.getNextEvent(event)
 
-            // Skip our own package
-            if (event.packageName == packageName) continue
+            val pkg = event.packageName
+            
+            // Focus events trigger frequently, we still want to track when our target app loses focus
+            // But we ignore ALL events that are not related to our target packages, except when
+            // our tracked target app is losing focus to a non-tracked app.
+            val isTargetApp = TARGET_PACKAGES.contains(pkg)
 
-            val friendlyName = getAppName(event.packageName)
+            val friendlyName = getAppName(pkg)
 
             when (event.eventType) {
                 UsageEvents.Event.ACTIVITY_RESUMED -> {
                     // App came to foreground (opened / got focus)
-                    if (event.packageName != lastForegroundPackage) {
-                        // Log focus change
-                        val focusEntry = LogEntry(
-                            eventType = LogEntry.TYPE_APP_FOCUS,
-                            details = event.packageName,
-                            appName = friendlyName,
-                            timestamp = event.timeStamp
-                        )
-                        getDao().insertLog(focusEntry)
-
-                        // If it's a new app (not just resuming), log as opened
-                        if (lastForegroundPackage != null) {
-                            // Previous app lost focus → closed
+                    if (pkg != lastForegroundPackage) {
+                        
+                        // 1. Log previous app closing IF it was a target app
+                        if (lastForegroundPackage != null && TARGET_PACKAGES.contains(lastForegroundPackage!!)) {
                             val closedEntry = LogEntry(
                                 eventType = LogEntry.TYPE_APP_CLOSED,
                                 details = lastForegroundPackage!!,
@@ -224,28 +233,42 @@ class LoggerForegroundService : Service() {
                             getDao().insertLog(closedEntry)
                         }
 
-                        val openedEntry = LogEntry(
-                            eventType = LogEntry.TYPE_APP_OPENED,
-                            details = event.packageName,
-                            appName = friendlyName,
-                            timestamp = event.timeStamp
-                        )
-                        getDao().insertLog(openedEntry)
+                        // 2. Log new app opening & focus IF it is a target app
+                        if (isTargetApp) {
+                            val openedEntry = LogEntry(
+                                eventType = LogEntry.TYPE_APP_OPENED,
+                                details = pkg,
+                                appName = friendlyName,
+                                timestamp = event.timeStamp
+                            )
+                            getDao().insertLog(openedEntry)
 
-                        lastForegroundPackage = event.packageName
+                            val focusEntry = LogEntry(
+                                eventType = LogEntry.TYPE_APP_FOCUS,
+                                details = pkg,
+                                appName = friendlyName,
+                                timestamp = event.timeStamp
+                            )
+                            getDao().insertLog(focusEntry)
+                        }
+
+                        lastForegroundPackage = pkg
                     }
                 }
 
                 UsageEvents.Event.ACTIVITY_PAUSED -> {
                     // App went to background
-                    if (event.packageName == lastForegroundPackage) {
-                        val closedEntry = LogEntry(
-                            eventType = LogEntry.TYPE_APP_CLOSED,
-                            details = event.packageName,
-                            appName = friendlyName,
-                            timestamp = event.timeStamp
-                        )
-                        getDao().insertLog(closedEntry)
+                    if (pkg == lastForegroundPackage) {
+                        // Only log if it's one of our target apps
+                        if (isTargetApp) {
+                            val closedEntry = LogEntry(
+                                eventType = LogEntry.TYPE_APP_CLOSED,
+                                details = pkg,
+                                appName = friendlyName,
+                                timestamp = event.timeStamp
+                            )
+                            getDao().insertLog(closedEntry)
+                        }
                         lastForegroundPackage = null
                     }
                 }
@@ -254,17 +277,29 @@ class LoggerForegroundService : Service() {
     }
 
     private fun getAppName(packageName: String): String {
-        return try {
-            val pm = packageManager
-            val appInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                pm.getApplicationInfo(packageName, PackageManager.ApplicationInfoFlags.of(0))
-            } else {
-                @Suppress("DEPRECATION")
-                pm.getApplicationInfo(packageName, 0)
+        // Hardcode friendly names for the target packages to avoid System API overhead if possible
+        return when (packageName) {
+            "com.zhiliaoapp.musically", "com.ss.android.ugc.trill" -> "TikTok"
+            "com.facebook.katana" -> "Facebook"
+            "com.facebook.lite" -> "Facebook Lite"
+            "com.whatsapp" -> "WhatsApp"
+            "com.whatsapp.w4b" -> "WhatsApp Business"
+            "com.instagram.android" -> "Instagram"
+            "com.android.chrome" -> "Google Chrome"
+            else -> {
+                try {
+                    val pm = packageManager
+                    val appInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        pm.getApplicationInfo(packageName, PackageManager.ApplicationInfoFlags.of(0))
+                    } else {
+                        @Suppress("DEPRECATION")
+                        pm.getApplicationInfo(packageName, 0)
+                    }
+                    pm.getApplicationLabel(appInfo).toString()
+                } catch (_: Exception) {
+                    packageName
+                }
             }
-            pm.getApplicationLabel(appInfo).toString()
-        } catch (_: Exception) {
-            packageName
         }
     }
 
