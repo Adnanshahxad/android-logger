@@ -33,7 +33,7 @@
             android:textStyle="bold"
             android:layout_marginBottom="8dp" />
 
-        <com.google.android.material.switchmaterial.SwitchMaterial
+        <com.google.android.material.materialswitch.MaterialSwitch
             android:id="@+id/switchService"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
