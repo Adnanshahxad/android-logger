@@ -34,7 +34,7 @@ class LoggerForegroundService : Service() {
         private const val TAG = "LoggerService"
         private const val CHANNEL_ID = "logger_channel"
         private const val NOTIFICATION_ID = 1
-        private const val POLL_INTERVAL_MS = 2000L
+        private const val POLL_INTERVAL_MS = 5000L // Increased to 5s to save battery
 
         // Only log events from these specific packages
         private val TARGET_PACKAGES = setOf(
@@ -65,6 +65,21 @@ class LoggerForegroundService : Service() {
     private val serviceScope = CoroutineScope(Dispatchers.IO + Job())
     private var pollingJob: Job? = null
     
+    private val screenStateReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            when (intent.action) {
+                Intent.ACTION_SCREEN_OFF -> {
+                    Log.d(TAG, "Screen off, pausing tracking loop to save battery")
+                    pollingJob?.cancel()
+                }
+                Intent.ACTION_SCREEN_ON -> {
+                    Log.d(TAG, "Screen on, resuming tracking loop")
+                    startPolling()
+                }
+            }
+        }
+    }
+    
     // State tracking
     private var lastForegroundPackage: String? = null
     private var lastEventTime: Long = System.currentTimeMillis()
@@ -75,9 +90,18 @@ class LoggerForegroundService : Service() {
         createNotificationChannel()
         startForeground(NOTIFICATION_ID, buildNotification())
 
-        // Start polling for app usage and unlock events
-        startPolling()
-        Log.d(TAG, "Logger service started")
+        val filter = android.content.IntentFilter().apply {
+            addAction(Intent.ACTION_SCREEN_ON)
+            addAction(Intent.ACTION_SCREEN_OFF)
+        }
+        registerReceiver(screenStateReceiver, filter)
+
+        val powerManager = getSystemService(Context.POWER_SERVICE) as? PowerManager
+        if (powerManager?.isInteractive != false) {
+            startPolling()
+        }
+        
+        Log.d(TAG, "Logger service started (Battery Optimized)")
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -89,6 +113,11 @@ class LoggerForegroundService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         pollingJob?.cancel()
+        try {
+            unregisterReceiver(screenStateReceiver)
+        } catch (e: Exception) {
+            // Ignored
+        }
         Log.d(TAG, "Logger service stopped")
     }
 
