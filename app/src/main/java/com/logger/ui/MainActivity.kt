@@ -60,7 +60,6 @@ class MainActivity : AppCompatActivity() {
         setupToolbar()
         setupRecyclerView()
         setupFilterChips()
-        setupDatePicker()
         checkPermissions()
     }
 
@@ -76,6 +75,10 @@ class MainActivity : AppCompatActivity() {
 
     override fun onOptionsItemSelected(item: android.view.MenuItem): Boolean {
         return when (item.itemId) {
+            R.id.action_date -> {
+                showDatePickerMenu()
+                true
+            }
             R.id.action_settings -> {
                 startActivity(Intent(this, SettingsActivity::class.java))
                 true
@@ -106,33 +109,31 @@ class MainActivity : AppCompatActivity() {
         observeLogs()
     }
 
-    private fun setupDatePicker() {
-        binding.btnDateRange.setOnClickListener {
-            val datePicker = MaterialDatePicker.Builder.dateRangePicker()
-                .setTitleText("Select Date Range")
-                .setSelection(
-                    Pair(currentStartTimestamp, currentEndTimestamp)
-                )
-                .build()
+    private fun showDatePickerMenu() {
+        val datePicker = MaterialDatePicker.Builder.dateRangePicker()
+            .setTitleText("Select Date Range")
+            .setSelection(
+                Pair(currentStartTimestamp, currentEndTimestamp)
+            )
+            .build()
 
-            datePicker.addOnPositiveButtonClickListener { selection ->
-                // The selection gives timestamps in UTC at 00:00:00 of the selected days.
-                // We convert the end date to 23:59:59.999 of that specific day.
-                currentStartTimestamp = selection.first
-                
-                val endCalendar = Calendar.getInstance()
-                endCalendar.timeInMillis = selection.second
-                endCalendar.set(Calendar.HOUR_OF_DAY, 23)
-                endCalendar.set(Calendar.MINUTE, 59)
-                endCalendar.set(Calendar.SECOND, 59)
-                endCalendar.set(Calendar.MILLISECOND, 999)
-                currentEndTimestamp = endCalendar.timeInMillis
-                
-                observeLogs()
-            }
-
-            datePicker.show(supportFragmentManager, "DATE_PICKER")
+        datePicker.addOnPositiveButtonClickListener { selection ->
+            // The selection gives timestamps in UTC at 00:00:00 of the selected days.
+            // We convert the end date to 23:59:59.999 of that specific day.
+            currentStartTimestamp = selection.first
+            
+            val endCalendar = Calendar.getInstance()
+            endCalendar.timeInMillis = selection.second
+            endCalendar.set(Calendar.HOUR_OF_DAY, 23)
+            endCalendar.set(Calendar.MINUTE, 59)
+            endCalendar.set(Calendar.SECOND, 59)
+            endCalendar.set(Calendar.MILLISECOND, 999)
+            currentEndTimestamp = endCalendar.timeInMillis
+            
+            observeLogs()
         }
+
+        datePicker.show(supportFragmentManager, "DATE_PICKER")
     }
 
     private fun observeLogs() {

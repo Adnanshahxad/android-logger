@@ -12,7 +12,7 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
-        android:textAppearance="?attr/textAppearanceBodyLarge" />
+        android:textAppearance="@style/TextAppearance.Material3.BodyLarge" />
 
     <ImageButton
         android:id="@+id/btnRemove"
@@ -21,6 +21,6 @@
         android:background="?attr/selectableItemBackgroundBorderless"
         android:contentDescription="Remove package from exclusion list"
         android:src="@drawable/ic_delete"
-        android:tint="?attr/colorError" />
+        app:tint="?attr/colorError" />
 
 </LinearLayout>
