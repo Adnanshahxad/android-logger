@@ -75,10 +75,6 @@ class LoggerForegroundService : Service() {
         createNotificationChannel()
         startForeground(NOTIFICATION_ID, buildNotification())
 
-        // Initial lock state
-        val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
-        wasDeviceLocked = keyguardManager?.isKeyguardLocked == true
-
         // Start polling for app usage and unlock events
         startPolling()
         Log.d(TAG, "Logger service started")
@@ -133,66 +129,12 @@ class LoggerForegroundService : Service() {
         pollingJob = serviceScope.launch {
             while (isActive) {
                 try {
-                    pollDeviceState()
                     pollAppUsage()
                 } catch (e: Exception) {
                     Log.e(TAG, "Error during polling", e)
                 }
                 delay(POLL_INTERVAL_MS)
             }
-        }
-    }
-
-    private suspend fun pollDeviceState() {
-        val powerManager = getSystemService(Context.POWER_SERVICE) as? PowerManager
-        val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
-
-        if (powerManager == null || keyguardManager == null) return
-
-        val isScreenOn = powerManager.isInteractive
-        val isLocked = keyguardManager.isKeyguardLocked
-
-        // If the screen is on and the device just went from Locked -> Unlocked
-        if (isScreenOn && wasDeviceLocked && !isLocked) {
-            Log.d(TAG, "Device unlocked detected via polling!")
-            logUnlockEvent()
-        }
-
-        // Update tracking state
-        wasDeviceLocked = isLocked
-    }
-
-    private suspend fun logUnlockEvent() {
-        val authMethod = detectAuthMethod()
-        val entry = LogEntry(
-            eventType = LogEntry.TYPE_AUTH_UNLOCK,
-            details = authMethod,
-            timestamp = System.currentTimeMillis()
-        )
-        getDao().insertLog(entry)
-        Log.d(TAG, "Logged unlock: $authMethod")
-    }
-
-    private fun detectAuthMethod(): String {
-        val biometricManager = BiometricManager.from(this)
-
-        val hasBiometricStrong = biometricManager.canAuthenticate(
-            BiometricManager.Authenticators.BIOMETRIC_STRONG
-        ) == BiometricManager.BIOMETRIC_SUCCESS
-
-        val hasBiometricWeak = biometricManager.canAuthenticate(
-            BiometricManager.Authenticators.BIOMETRIC_WEAK
-        ) == BiometricManager.BIOMETRIC_SUCCESS
-
-        val hasDeviceCredential = biometricManager.canAuthenticate(
-            BiometricManager.Authenticators.DEVICE_CREDENTIAL
-        ) == BiometricManager.BIOMETRIC_SUCCESS
-
-        return when {
-            hasBiometricStrong -> "Biometric (Fingerprint/Face - Strong)"
-            hasBiometricWeak -> "Biometric (Weak)"
-            hasDeviceCredential -> "Device Credential (PIN/Pattern/Password)"
-            else -> "Screen Unlocked"
         }
     }
 
