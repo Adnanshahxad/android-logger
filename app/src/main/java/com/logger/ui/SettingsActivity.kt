@@ -21,14 +21,21 @@ class SettingsActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = ActivitySettingsBinding.inflate(layoutInflater)
-        setContentView(binding.root)
+        try {
+            binding = ActivitySettingsBinding.inflate(layoutInflater)
+            setContentView(binding.root)
 
-        settingsManager = SettingsManager(this)
+            settingsManager = SettingsManager(this)
 
-        setupToolbar()
-        setupControls()
-        setupExclusionList()
+            setupToolbar()
+            setupControls()
+            setupExclusionList()
+        } catch (e: Exception) {
+            Toast.makeText(this, "Crash prevented! Error: ${e.message}", Toast.LENGTH_LONG).show()
+            e.printStackTrace()
+            // Finish to gracefully stop the crash loop
+            finish()
+        }
     }
 
     private fun setupToolbar() {
