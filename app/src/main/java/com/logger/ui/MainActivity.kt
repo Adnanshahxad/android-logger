@@ -31,10 +31,6 @@ class MainActivity : AppCompatActivity() {
     private var currentFilter: String? = null
     private var isServiceRunning = false
 
-    private val notificationPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { /* We proceed regardless */ }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
@@ -141,17 +137,7 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        // 2. Check notification permission (API 33+)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(
-                    this, android.Manifest.permission.POST_NOTIFICATIONS
-                ) != PackageManager.PERMISSION_GRANTED
-            ) {
-                notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
-            }
-        }
-
-        // 3. Start the service
+        // 2. Start the service (Android 13+ will silently hide the notification since we didn't ask for permission)
         startLogging()
     }
 

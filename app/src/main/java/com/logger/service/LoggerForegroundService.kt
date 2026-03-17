@@ -125,7 +125,7 @@ class LoggerForegroundService : Service() {
         val channel = NotificationChannel(
             CHANNEL_ID,
             "Logger Service",
-            NotificationManager.IMPORTANCE_LOW
+            NotificationManager.IMPORTANCE_MIN
         ).apply {
             description = "Keeps the logger running in the background"
             setShowBadge(false)
