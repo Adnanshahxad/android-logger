@@ -19,13 +19,6 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var settingsManager: SettingsManager
     private lateinit var adapter: ExcludedPackageAdapter
 
-    // Since we don't bind to the service, we track the intent state roughly.
-    // In a production app, we'd use a bound service or SharedPrefs for exact state.
-    // But since the service runs until explicitly stopped, this static tracker is fine.
-    companion object {
-        var isServiceRunning = true // Assumes running on open if it was started
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivitySettingsBinding.inflate(layoutInflater)
@@ -51,15 +44,14 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun setupControls() {
         // Init state
-        binding.switchService.isChecked = isServiceRunning
+        binding.switchService.isChecked = settingsManager.isLoggerEnabled
 
         binding.switchService.setOnCheckedChangeListener { _, isChecked ->
+            settingsManager.isLoggerEnabled = isChecked
             if (isChecked) {
                 LoggerForegroundService.start(this)
-                isServiceRunning = true
             } else {
                 LoggerForegroundService.stop(this)
-                isServiceRunning = false
             }
         }
 

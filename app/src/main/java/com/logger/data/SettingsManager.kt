@@ -8,7 +8,12 @@ class SettingsManager(context: Context) {
 
     companion object {
         private const val KEY_EXCLUDED_PACKAGES = "excluded_packages"
+        private const val KEY_LOGGER_ENABLED = "logger_enabled"
     }
+
+    var isLoggerEnabled: Boolean
+        get() = prefs.getBoolean(KEY_LOGGER_ENABLED, true)
+        set(value) = prefs.edit().putBoolean(KEY_LOGGER_ENABLED, value).apply()
 
     fun getExcludedPackages(): Set<String> {
         return prefs.getStringSet(KEY_EXCLUDED_PACKAGES, emptySet())?.toSet() ?: emptySet()

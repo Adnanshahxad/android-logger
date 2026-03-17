@@ -3,7 +3,7 @@ package com.logger.ui
 import android.app.AppOpsManager
 import android.content.Context
 import android.content.Intent
-import com.logger.ui.SettingsActivity
+import com.logger.data.SettingsManager
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -45,7 +45,8 @@ class MainActivity : AppCompatActivity() {
     private fun setupToolbar() {
         setSupportActionBar(binding.toolbar)
         supportActionBar?.title = "Android Sys"
-        
+    }
+
     override fun onCreateOptionsMenu(menu: android.view.Menu?): Boolean {
         menuInflater.inflate(R.menu.menu_main, menu)
         return true
@@ -59,7 +60,6 @@ class MainActivity : AppCompatActivity() {
             }
             else -> super.onOptionsItemSelected(item)
         }
-    }
     }
 
     private fun setupRecyclerView() {
@@ -119,21 +119,24 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        // 2. Start the service (Android 13+ will silently hide the notification since we didn't ask for permission)
-        startLogging()
+        // 2. Start the service if enabled in settings
+        val settings = SettingsManager(this)
+        if (settings.isLoggerEnabled) {
+            startLogging()
+        }
     }
 
     override fun onResume() {
         super.onResume()
         // Re-check after returning from settings
-        if (hasUsageStatsPermission() && !SettingsActivity.isServiceRunning) {
+        val settings = SettingsManager(this)
+        if (hasUsageStatsPermission() && settings.isLoggerEnabled) {
             startLogging()
         }
     }
 
     private fun startLogging() {
         LoggerForegroundService.start(this)
-        SettingsActivity.isServiceRunning = true
     }
 
     private fun hasUsageStatsPermission(): Boolean {
