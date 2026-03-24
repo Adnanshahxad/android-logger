@@ -3,7 +3,13 @@ package com.logger.data
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "log_entries")
+@Entity(
+    tableName = "log_entries",
+    indices = [
+        androidx.room.Index(value = ["timestamp"]),
+        androidx.room.Index(value = ["eventType", "timestamp"])
+    ]
+)
 data class LogEntry(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,

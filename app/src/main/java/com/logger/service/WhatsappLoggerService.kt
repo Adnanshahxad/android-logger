@@ -44,6 +44,9 @@ class WhatsappLoggerService : NotificationListenerService() {
 
         val now = System.currentTimeMillis()
 
+        // Prevent memory leak: Garbage collect old pending notifications
+        activeTracker.entries.removeIf { now - it.value.startTime > 12 * 60 * 60 * 1000L }
+
         if (isCall) {
             if (text.contains("Ongoing", ignoreCase = true)) {
                 // Ongoing call started
