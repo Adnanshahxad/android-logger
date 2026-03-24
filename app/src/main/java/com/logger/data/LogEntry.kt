@@ -8,7 +8,7 @@ data class LogEntry(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
 
-    /** Event type: AUTH_UNLOCK, APP_OPENED, APP_CLOSED, APP_FOCUS */
+    /** Event type: AUTH_UNLOCK, APP_OPENED, APP_CLOSED, APP_FOCUS, CALL_INCOMING */
     val eventType: String,
 
     /** Details: e.g. "Fingerprint", "com.whatsapp", package name */
@@ -28,5 +28,6 @@ data class LogEntry(
         const val TYPE_APP_OPENED = "APP_OPENED"
         const val TYPE_APP_CLOSED = "APP_CLOSED"
         const val TYPE_APP_FOCUS = "APP_FOCUS"
+        const val TYPE_CALL_INCOMING = "CALL_INCOMING"
     }
 }

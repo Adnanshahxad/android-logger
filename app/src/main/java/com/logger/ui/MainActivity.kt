@@ -1,5 +1,6 @@
 package com.logger.ui
 
+import android.Manifest
 import android.app.AppOpsManager
 import android.content.Context
 import android.content.Intent
@@ -8,6 +9,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.view.View
 import android.widget.ArrayAdapter
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -40,6 +42,19 @@ class MainActivity : AppCompatActivity() {
     private var currentStartTimestamp: Long = 0L
     private var currentEndTimestamp: Long = 0L
 
+    // Track which tab is active
+    private var isCallHistoryTab = false
+
+    // Permission launcher for phone permissions
+    private val phonePermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val allGranted = permissions.values.all { it }
+        if (!allGranted) {
+            Snackbar.make(binding.root, "Phone permissions needed for call logging", Snackbar.LENGTH_LONG).show()
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
@@ -62,7 +77,9 @@ class MainActivity : AppCompatActivity() {
         setupToolbar()
         setupRecyclerView()
         setupDropdownFilters()
+        setupBottomNavigation()
         checkPermissions()
+        requestPhonePermissions()
     }
 
     private fun setupToolbar() {
@@ -142,6 +159,26 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun setupBottomNavigation() {
+        binding.bottomNav.setOnItemSelectedListener { item ->
+            when (item.itemId) {
+                R.id.nav_app_activity -> {
+                    isCallHistoryTab = false
+                    binding.filterContainer.visibility = View.VISIBLE
+                    observeLogs()
+                    true
+                }
+                R.id.nav_call_history -> {
+                    isCallHistoryTab = true
+                    binding.filterContainer.visibility = View.GONE
+                    observeCallLogs()
+                    true
+                }
+                else -> false
+            }
+        }
+    }
+
     private fun showDatePickerMenu() {
         val datePicker = MaterialDatePicker.Builder.dateRangePicker()
             .setTitleText("Select Date Range")
@@ -151,8 +188,6 @@ class MainActivity : AppCompatActivity() {
             .build()
 
         datePicker.addOnPositiveButtonClickListener { selection ->
-            // The selection gives timestamps in UTC at 00:00:00 of the selected days.
-            // We convert the end date to 23:59:59.999 of that specific day.
             currentStartTimestamp = selection.first
             
             val endCalendar = Calendar.getInstance()
@@ -163,7 +198,11 @@ class MainActivity : AppCompatActivity() {
             endCalendar.set(Calendar.MILLISECOND, 999)
             currentEndTimestamp = endCalendar.timeInMillis
             
-            observeLogs()
+            if (isCallHistoryTab) {
+                observeCallLogs()
+            } else {
+                observeLogs()
+            }
         }
 
         datePicker.show(supportFragmentManager, "DATE_PICKER")
@@ -179,13 +218,44 @@ class MainActivity : AppCompatActivity() {
                 endTimestamp = currentEndTimestamp
             ).collectLatest { logs ->
                 logAdapter.submitList(logs)
-                binding.emptyView.visibility = if (logs.isEmpty()) android.view.View.VISIBLE else android.view.View.GONE
-                binding.recyclerViewLogs.visibility = if (logs.isEmpty()) android.view.View.GONE else android.view.View.VISIBLE
+                binding.emptyView.visibility = if (logs.isEmpty()) View.VISIBLE else View.GONE
+                binding.recyclerViewLogs.visibility = if (logs.isEmpty()) View.GONE else View.VISIBLE
+            }
+        }
+    }
+
+    private fun observeCallLogs() {
+        val dao = (application as LoggerApp).database.logDao()
+        lifecycleScope.launch {
+            dao.getCallLogs(
+                startTimestamp = currentStartTimestamp,
+                endTimestamp = currentEndTimestamp
+            ).collectLatest { logs ->
+                logAdapter.submitList(logs)
+                binding.emptyView.visibility = if (logs.isEmpty()) View.VISIBLE else View.GONE
+                binding.recyclerViewLogs.visibility = if (logs.isEmpty()) View.GONE else View.VISIBLE
             }
         }
     }
 
     // ─── Permissions & Initial Service Start ─────────────────────────
+
+    private fun requestPhonePermissions() {
+        val neededPermissions = mutableListOf<String>()
+        
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_STATE)
+            != PackageManager.PERMISSION_GRANTED) {
+            neededPermissions.add(Manifest.permission.READ_PHONE_STATE)
+        }
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CALL_LOG)
+            != PackageManager.PERMISSION_GRANTED) {
+            neededPermissions.add(Manifest.permission.READ_CALL_LOG)
+        }
+
+        if (neededPermissions.isNotEmpty()) {
+            phonePermissionLauncher.launch(neededPermissions.toTypedArray())
+        }
+    }
 
     private fun checkPermissions() {
         // 1. Check Usage Stats permission

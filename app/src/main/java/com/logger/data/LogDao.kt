@@ -26,6 +26,9 @@ interface LogDao {
     @Query("DELETE FROM log_entries")
     suspend fun clearAllLogs()
 
+    @Query("SELECT * FROM log_entries WHERE eventType = 'CALL_INCOMING' AND timestamp BETWEEN :startTimestamp AND :endTimestamp ORDER BY timestamp DESC")
+    fun getCallLogs(startTimestamp: Long, endTimestamp: Long): Flow<List<LogEntry>>
+
     @Query("SELECT COUNT(*) FROM log_entries")
     suspend fun getLogCount(): Int
 }
