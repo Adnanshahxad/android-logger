@@ -78,7 +78,6 @@ class LoggerForegroundService : Service() {
                 TelephonyManager.ACTION_PHONE_STATE_CHANGED -> {
                     Log.d(TAG, "Phone state broadcast received (backup)")
                 }
-                }
                 Telephony.Sms.Intents.SMS_RECEIVED_ACTION -> {
                     handleSmsReceived(context, intent)
                 }
