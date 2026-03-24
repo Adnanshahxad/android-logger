@@ -294,6 +294,10 @@ class MainActivity : AppCompatActivity() {
             != PackageManager.PERMISSION_GRANTED) {
             neededPermissions.add(Manifest.permission.RECEIVE_SMS)
         }
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_SMS)
+            != PackageManager.PERMISSION_GRANTED) {
+            neededPermissions.add(Manifest.permission.READ_SMS)
+        }
 
         if (neededPermissions.isNotEmpty()) {
             phonePermissionLauncher.launch(neededPermissions.toTypedArray())

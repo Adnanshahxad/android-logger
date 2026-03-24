@@ -90,8 +90,9 @@ class LoggerForegroundService : Service() {
     private var lastForegroundStartTime: Long = 0L
     private var wasDeviceLocked: Boolean = true
 
-    // Call state tracking
-    private var lastCallLogCheckTime: Long = System.currentTimeMillis()
+    // Call and SMS state tracking
+    private var lastCallLogId: Long = 0L
+    private var lastSmsId: Long = 0L
 
     override fun onCreate() {
         super.onCreate()
@@ -128,6 +129,9 @@ class LoggerForegroundService : Service() {
             )
             getDao().insertLog(diagEntry)
             Log.d(TAG, "Diag: READ_CALL_LOG=$hasCallLogPerm, READ_PHONE_STATE=$hasPhoneStatePerm, RECEIVE_SMS=$hasSmsPerm")
+
+            // Initialize last known IDs to avoid re-logging old entries
+            initializeLastIds()
         }
     }
 
@@ -187,6 +191,7 @@ class LoggerForegroundService : Service() {
                 try {
                     pollAppUsage()
                     pollCallLog()
+                    pollSmsLog()
                 } catch (e: Exception) {
                     Log.e(TAG, "Error during polling", e)
                 }
@@ -338,10 +343,44 @@ class LoggerForegroundService : Service() {
 
     // ─── Call Detection (Polling-based) ───────────────────────────────
 
+    private suspend fun initializeLastIds() {
+        try {
+            // Get the latest call log ID
+            contentResolver.query(
+                CallLog.Calls.CONTENT_URI,
+                arrayOf(CallLog.Calls._ID),
+                null, null,
+                "${CallLog.Calls._ID} DESC LIMIT 1"
+            )?.use {
+                if (it.moveToFirst()) {
+                    lastCallLogId = it.getLong(0)
+                    Log.d(TAG, "Initialized lastCallLogId=$lastCallLogId")
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error initializing call log ID", e)
+        }
+
+        try {
+            // Get the latest SMS ID
+            contentResolver.query(
+                Telephony.Sms.CONTENT_URI,
+                arrayOf(Telephony.Sms._ID),
+                null, null,
+                "${Telephony.Sms._ID} DESC LIMIT 1"
+            )?.use {
+                if (it.moveToFirst()) {
+                    lastSmsId = it.getLong(0)
+                    Log.d(TAG, "Initialized lastSmsId=$lastSmsId")
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error initializing SMS ID", e)
+        }
+    }
+
     private suspend fun pollCallLog() {
         try {
-            val now = System.currentTimeMillis()
-
             val cursor: Cursor? = contentResolver.query(
                 CallLog.Calls.CONTENT_URI,
                 arrayOf(
@@ -352,13 +391,14 @@ class LoggerForegroundService : Service() {
                     CallLog.Calls.DATE,
                     CallLog.Calls.PHONE_ACCOUNT_ID
                 ),
-                "${CallLog.Calls.DATE} > ?",
-                arrayOf(lastCallLogCheckTime.toString()),
-                "${CallLog.Calls.DATE} ASC"
+                "${CallLog.Calls._ID} > ?",
+                arrayOf(lastCallLogId.toString()),
+                "${CallLog.Calls._ID} ASC"
             )
 
             cursor?.use {
                 while (it.moveToNext()) {
+                    val id = it.getLong(it.getColumnIndexOrThrow(CallLog.Calls._ID))
                     val number = it.getString(it.getColumnIndexOrThrow(CallLog.Calls.NUMBER)) ?: "Unknown"
                     val duration = it.getLong(it.getColumnIndexOrThrow(CallLog.Calls.DURATION))
                     val type = it.getInt(it.getColumnIndexOrThrow(CallLog.Calls.TYPE))
@@ -378,32 +418,87 @@ class LoggerForegroundService : Service() {
                     val entry = LogEntry(
                         eventType = LogEntry.TYPE_CALL_INCOMING,
                         details = number,
-                        appName = "[P] $callType Call • $simInfo",
+                        appName = "[P] $callType Call \u2022 $simInfo",
                         durationMillis = if (duration > 0) duration * 1000 else null,
                         timestamp = date
                     )
 
                     getDao().insertLog(entry)
+                    lastCallLogId = id
                     Log.d(TAG, "Polled call: $callType from $number on $simInfo, duration: ${duration}s")
                 }
             }
 
-            lastCallLogCheckTime = now
-
         } catch (e: SecurityException) {
             Log.w(TAG, "No READ_CALL_LOG permission, skipping call polling")
-            // Write visible error so user can see in Calls tab
-            serviceScope.launch {
-                val errEntry = LogEntry(
-                    eventType = LogEntry.TYPE_CALL_INCOMING,
-                    details = "PERMISSION_ERROR",
-                    appName = "[P] READ_CALL_LOG permission denied! Grant it in app settings.",
-                    timestamp = System.currentTimeMillis()
-                )
-                getDao().insertLog(errEntry)
-            }
         } catch (e: Exception) {
             Log.e(TAG, "Error polling call log", e)
+        }
+    }
+
+    // ─── SMS Detection (Polling-based) ───────────────────────────────
+
+    private suspend fun pollSmsLog() {
+        try {
+            val cursor: Cursor? = contentResolver.query(
+                Telephony.Sms.CONTENT_URI,
+                arrayOf(
+                    Telephony.Sms._ID,
+                    Telephony.Sms.ADDRESS,
+                    Telephony.Sms.BODY,
+                    Telephony.Sms.DATE,
+                    Telephony.Sms.TYPE,
+                    Telephony.Sms.SUBSCRIPTION_ID
+                ),
+                "${Telephony.Sms._ID} > ?",
+                arrayOf(lastSmsId.toString()),
+                "${Telephony.Sms._ID} ASC"
+            )
+
+            cursor?.use {
+                while (it.moveToNext()) {
+                    val id = it.getLong(it.getColumnIndexOrThrow(Telephony.Sms._ID))
+                    val address = it.getString(it.getColumnIndexOrThrow(Telephony.Sms.ADDRESS)) ?: "Unknown"
+                    val body = it.getString(it.getColumnIndexOrThrow(Telephony.Sms.BODY)) ?: ""
+                    val date = it.getLong(it.getColumnIndexOrThrow(Telephony.Sms.DATE))
+                    val type = it.getInt(it.getColumnIndexOrThrow(Telephony.Sms.TYPE))
+                    val subId = it.getInt(it.getColumnIndexOrThrow(Telephony.Sms.SUBSCRIPTION_ID))
+
+                    val direction = when (type) {
+                        Telephony.Sms.MESSAGE_TYPE_INBOX -> "Received"
+                        Telephony.Sms.MESSAGE_TYPE_SENT -> "Sent"
+                        Telephony.Sms.MESSAGE_TYPE_OUTBOX -> "Sending"
+                        Telephony.Sms.MESSAGE_TYPE_DRAFT -> "Draft"
+                        else -> "Unknown"
+                    }
+
+                    // Skip drafts
+                    if (type == Telephony.Sms.MESSAGE_TYPE_DRAFT) {
+                        lastSmsId = id
+                        continue
+                    }
+
+                    val digitCount = address.replace(Regex("[^0-9]"), "").length
+                    val storedBody = if (digitCount > 9) body else body.take(20)
+                    val simInfo = resolveSimSlotFromSubId(this@LoggerForegroundService, subId)
+
+                    val entry = LogEntry(
+                        eventType = LogEntry.TYPE_SMS_RECEIVED,
+                        details = address,
+                        appName = "[$direction] $storedBody \u2022 $simInfo",
+                        timestamp = date
+                    )
+
+                    getDao().insertLog(entry)
+                    lastSmsId = id
+                    Log.d(TAG, "Polled SMS: $direction from/to $address on $simInfo")
+                }
+            }
+
+        } catch (e: SecurityException) {
+            Log.w(TAG, "No READ_SMS permission, skipping SMS polling")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error polling SMS log", e)
         }
     }
 
