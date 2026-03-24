@@ -155,20 +155,9 @@ class LoggerForegroundService : Service() {
         
         Log.d(TAG, "Logger service started (Battery Optimized + Observers)")
 
-        // Write diagnostic entry to help debug call logging
-        serviceScope.launch {
-            val hasCallLogPerm = checkSelfPermission(android.Manifest.permission.READ_CALL_LOG) == PackageManager.PERMISSION_GRANTED
-            val hasPhoneStatePerm = checkSelfPermission(android.Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED
-            val hasSmsPerm = checkSelfPermission(android.Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED
-            val diagEntry = LogEntry(
-                eventType = LogEntry.TYPE_CALL_INCOMING,
-                details = "DIAGNOSTIC",
-                appName = "[DIAG] Service started. CALL_LOG=$hasCallLogPerm PHONE=$hasPhoneStatePerm SMS=$hasSmsPerm",
-                timestamp = System.currentTimeMillis()
-            )
-            getDao().insertLog(diagEntry)
-            Log.d(TAG, "Diag: READ_CALL_LOG=$hasCallLogPerm, READ_PHONE_STATE=$hasPhoneStatePerm, RECEIVE_SMS=$hasSmsPerm")
+        Log.d(TAG, "Logger service started (Battery Optimized + Observers)")
 
+        serviceScope.launch {
             // Initialize last known IDs to avoid re-logging old entries
             initializeLastIds()
         }
