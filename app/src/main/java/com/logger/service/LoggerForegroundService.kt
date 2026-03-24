@@ -11,9 +11,12 @@ import android.app.usage.UsageStatsManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.database.Cursor
 import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
+import android.provider.CallLog
+import android.telephony.TelephonyManager
 import android.util.Log
 import androidx.biometric.BiometricManager
 import androidx.core.app.NotificationCompat
@@ -68,6 +71,9 @@ class LoggerForegroundService : Service() {
                     Log.d(TAG, "Device unlocked detected via OS broadcast!")
                     logUnlockEvent(context)
                 }
+                TelephonyManager.ACTION_PHONE_STATE_CHANGED -> {
+                    handlePhoneStateChange(context, intent)
+                }
             }
         }
     }
@@ -78,6 +84,10 @@ class LoggerForegroundService : Service() {
     private var lastForegroundStartTime: Long = 0L
     private var wasDeviceLocked: Boolean = true
 
+    // Call state tracking
+    private var lastCallState = TelephonyManager.CALL_STATE_IDLE
+    private var incomingNumber: String? = null
+
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
@@ -87,6 +97,7 @@ class LoggerForegroundService : Service() {
             addAction(Intent.ACTION_SCREEN_ON)
             addAction(Intent.ACTION_SCREEN_OFF)
             addAction(Intent.ACTION_USER_PRESENT)
+            addAction(TelephonyManager.ACTION_PHONE_STATE_CHANGED)
         }
         registerReceiver(screenStateReceiver, filter)
 
@@ -299,6 +310,92 @@ class LoggerForegroundService : Service() {
             hasBiometricWeak -> "Biometric (Weak)"
             hasDeviceCredential -> "Device Credential (PIN/Pattern/Password)"
             else -> "Screen Unlocked"
+        }
+    }
+
+    // ─── Call Detection ──────────────────────────────────────────────
+
+    private fun handlePhoneStateChange(context: Context, intent: Intent) {
+        val stateStr = intent.getStringExtra(TelephonyManager.EXTRA_STATE) ?: return
+        val state = when (stateStr) {
+            TelephonyManager.EXTRA_STATE_IDLE -> TelephonyManager.CALL_STATE_IDLE
+            TelephonyManager.EXTRA_STATE_RINGING -> TelephonyManager.CALL_STATE_RINGING
+            TelephonyManager.EXTRA_STATE_OFFHOOK -> TelephonyManager.CALL_STATE_OFFHOOK
+            else -> return
+        }
+
+        if (state == lastCallState) return
+
+        when (state) {
+            TelephonyManager.CALL_STATE_RINGING -> {
+                @Suppress("DEPRECATION")
+                incomingNumber = intent.getStringExtra(TelephonyManager.EXTRA_INCOMING_NUMBER)
+                Log.d(TAG, "Incoming call from: ${incomingNumber ?: "Unknown"}")
+            }
+            TelephonyManager.CALL_STATE_IDLE -> {
+                if (lastCallState == TelephonyManager.CALL_STATE_RINGING || lastCallState == TelephonyManager.CALL_STATE_OFFHOOK) {
+                    val savedNumber = incomingNumber
+                    serviceScope.launch {
+                        delay(3000)
+                        logCallFromSystemDB(context, savedNumber)
+                    }
+                }
+                incomingNumber = null
+            }
+            TelephonyManager.CALL_STATE_OFFHOOK -> {
+                Log.d(TAG, "Call answered")
+            }
+        }
+
+        lastCallState = state
+    }
+
+    private suspend fun logCallFromSystemDB(context: Context, phoneNumber: String?) {
+        try {
+            var duration: Long = 0
+            var callerNumber: String = phoneNumber ?: "Unknown"
+            var callType = "Missed"
+
+            val cursor: Cursor? = context.contentResolver.query(
+                CallLog.Calls.CONTENT_URI,
+                arrayOf(
+                    CallLog.Calls.NUMBER,
+                    CallLog.Calls.DURATION,
+                    CallLog.Calls.TYPE
+                ),
+                null,
+                null,
+                "${CallLog.Calls.DATE} DESC LIMIT 1"
+            )
+
+            cursor?.use {
+                if (it.moveToFirst()) {
+                    callerNumber = it.getString(it.getColumnIndexOrThrow(CallLog.Calls.NUMBER)) ?: callerNumber
+                    duration = it.getLong(it.getColumnIndexOrThrow(CallLog.Calls.DURATION))
+                    val type = it.getInt(it.getColumnIndexOrThrow(CallLog.Calls.TYPE))
+                    callType = when (type) {
+                        CallLog.Calls.INCOMING_TYPE -> "Answered"
+                        CallLog.Calls.MISSED_TYPE -> "Missed"
+                        CallLog.Calls.REJECTED_TYPE -> "Rejected"
+                        CallLog.Calls.OUTGOING_TYPE -> "Outgoing"
+                        else -> "Unknown"
+                    }
+                }
+            }
+
+            val entry = LogEntry(
+                eventType = LogEntry.TYPE_CALL_INCOMING,
+                details = callerNumber,
+                appName = "$callType Call",
+                durationMillis = if (duration > 0) duration * 1000 else null,
+                timestamp = System.currentTimeMillis()
+            )
+
+            getDao().insertLog(entry)
+            Log.d(TAG, "Logged call: $callType from $callerNumber, duration: ${duration}s")
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error logging call", e)
         }
     }
 }
