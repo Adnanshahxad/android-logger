@@ -25,6 +25,7 @@ import com.logger.R
 import com.logger.data.LogEntry
 import com.logger.databinding.ActivityMainBinding
 import com.logger.service.LoggerForegroundService
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import java.util.Calendar
@@ -44,6 +45,7 @@ class MainActivity : AppCompatActivity() {
 
     // Track which tab is active: 0=App, 1=Calls, 2=Messages
     private var activeTab = 0
+    private var observeJob: Job? = null
 
     // Permission launcher for phone permissions
     private val phonePermissionLauncher = registerForActivityResult(
@@ -234,8 +236,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun observeLogs() {
+        observeJob?.cancel()
         val dao = (application as LoggerApp).database.logDao()
-        lifecycleScope.launch {
+        observeJob = lifecycleScope.launch {
             dao.getFilteredLogs(
                 type = currentTypeFilter,
                 pkg = currentPackageFilter,
@@ -250,8 +253,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun observeCallLogs() {
+        observeJob?.cancel()
         val dao = (application as LoggerApp).database.logDao()
-        lifecycleScope.launch {
+        observeJob = lifecycleScope.launch {
             dao.getCallLogs(
                 startTimestamp = currentStartTimestamp,
                 endTimestamp = currentEndTimestamp
@@ -264,8 +268,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun observeSmsLogs() {
+        observeJob?.cancel()
         val dao = (application as LoggerApp).database.logDao()
-        lifecycleScope.launch {
+        observeJob = lifecycleScope.launch {
             dao.getSmsLogs(
                 startTimestamp = currentStartTimestamp,
                 endTimestamp = currentEndTimestamp
