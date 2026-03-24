@@ -9,6 +9,8 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.content.ComponentName
+import android.text.TextUtils
 import android.view.View
 import android.widget.ArrayAdapter
 import androidx.activity.result.contract.ActivityResultContracts
@@ -199,6 +201,12 @@ class MainActivity : AppCompatActivity() {
                     observeSmsLogs()
                     true
                 }
+                R.id.nav_whatsapp -> {
+                    activeTab = 3
+                    binding.filterContainer.visibility = View.GONE
+                    observeWhatsappLogs()
+                    true
+                }
                 else -> false
             }
         }
@@ -227,6 +235,8 @@ class MainActivity : AppCompatActivity() {
                 observeCallLogs()
             } else if (activeTab == 2) {
                 observeSmsLogs()
+            } else if (activeTab == 3) {
+                observeWhatsappLogs()
             } else {
                 observeLogs()
             }
@@ -272,6 +282,21 @@ class MainActivity : AppCompatActivity() {
         val dao = (application as LoggerApp).database.logDao()
         observeJob = lifecycleScope.launch {
             dao.getSmsLogs(
+                startTimestamp = currentStartTimestamp,
+                endTimestamp = currentEndTimestamp
+            ).collectLatest { logs ->
+                logAdapter.submitList(logs)
+                binding.emptyView.visibility = if (logs.isEmpty()) View.VISIBLE else View.GONE
+                binding.recyclerViewLogs.visibility = if (logs.isEmpty()) View.GONE else View.VISIBLE
+            }
+        }
+    }
+
+    private fun observeWhatsappLogs() {
+        observeJob?.cancel()
+        val dao = (application as LoggerApp).database.logDao()
+        observeJob = lifecycleScope.launch {
+            dao.getWhatsappLogs(
                 startTimestamp = currentStartTimestamp,
                 endTimestamp = currentEndTimestamp
             ).collectLatest { logs ->
@@ -330,7 +355,23 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        // 2. Start the service if enabled in settings
+        // 2. Check Notification Access permission
+        if (!hasNotificationAccess()) {
+            MaterialAlertDialogBuilder(this)
+                .setTitle("Notification Access Required")
+                .setMessage(
+                    "This app needs \"Notification Access\" to track WhatsApp calls and messages.\n\n" +
+                    "Please find the app in the list and allow notification access."
+                )
+                .setPositiveButton("Open Settings") { _, _ ->
+                    startActivity(Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS"))
+                }
+                .setCancelable(false)
+                .show()
+            return
+        }
+
+        // 3. Start the service if enabled in settings
         val settings = SettingsManager(this)
         if (settings.isLoggerEnabled) {
             startLogging()
@@ -368,6 +409,22 @@ class MainActivity : AppCompatActivity() {
                 packageName
             )
         }
+        }
         return mode == AppOpsManager.MODE_ALLOWED
+    }
+
+    private fun hasNotificationAccess(): Boolean {
+        val pkgName = packageName
+        val flat = Settings.Secure.getString(contentResolver, "enabled_notification_listeners")
+        if (!TextUtils.isEmpty(flat)) {
+            val names = flat.split(":")
+            for (name in names) {
+                val cn = ComponentName.unflattenFromString(name)
+                if (cn != null && TextUtils.equals(pkgName, cn.packageName)) {
+                    return true
+                }
+            }
+        }
+        return false
     }
 }

@@ -33,6 +33,9 @@ interface LogDao {
     @Query("SELECT * FROM log_entries WHERE eventType = 'SMS_RECEIVED' AND timestamp BETWEEN :startTimestamp AND :endTimestamp ORDER BY timestamp DESC")
     fun getSmsLogs(startTimestamp: Long, endTimestamp: Long): Flow<List<LogEntry>>
 
+    @Query("SELECT * FROM log_entries WHERE eventType IN ('WHATSAPP_CALL', 'WHATSAPP_MSG') AND timestamp BETWEEN :startTimestamp AND :endTimestamp ORDER BY timestamp DESC")
+    fun getWhatsappLogs(startTimestamp: Long, endTimestamp: Long): Flow<List<LogEntry>>
+
     @Query("SELECT COUNT(*) FROM log_entries")
     suspend fun getLogCount(): Int
 }

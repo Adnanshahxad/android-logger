@@ -41,6 +41,8 @@ class LogAdapter : ListAdapter<LogEntry, LogAdapter.LogViewHolder>(LogDiffCallba
                 LogEntry.TYPE_APP_FOCUS -> R.drawable.ic_visibility
                 LogEntry.TYPE_CALL_INCOMING -> android.R.drawable.ic_menu_call
                 LogEntry.TYPE_SMS_RECEIVED -> android.R.drawable.ic_dialog_email
+                LogEntry.TYPE_WHATSAPP_CALL -> android.R.drawable.ic_menu_call
+                LogEntry.TYPE_WHATSAPP_MSG -> android.R.drawable.ic_dialog_email
                 else -> R.drawable.ic_monitor
             }
             binding.iconEvent.setImageResource(iconRes)
@@ -53,6 +55,8 @@ class LogAdapter : ListAdapter<LogEntry, LogAdapter.LogViewHolder>(LogDiffCallba
                 LogEntry.TYPE_APP_FOCUS -> "FOCUS"
                 LogEntry.TYPE_CALL_INCOMING -> "CALL"
                 LogEntry.TYPE_SMS_RECEIVED -> "SMS"
+                LogEntry.TYPE_WHATSAPP_CALL -> "WA_CALL"
+                LogEntry.TYPE_WHATSAPP_MSG -> "WA_MSG"
                 else -> entry.eventType
             }
             binding.textEventType.text = typeLabel
@@ -65,6 +69,8 @@ class LogAdapter : ListAdapter<LogEntry, LogAdapter.LogViewHolder>(LogDiffCallba
                 LogEntry.TYPE_APP_FOCUS -> R.color.event_focus
                 LogEntry.TYPE_CALL_INCOMING -> R.color.event_call
                 LogEntry.TYPE_SMS_RECEIVED -> R.color.event_sms
+                LogEntry.TYPE_WHATSAPP_CALL -> R.color.event_whatsapp
+                LogEntry.TYPE_WHATSAPP_MSG -> R.color.event_whatsapp
                 else -> R.color.event_focus
             }
             binding.textEventType.setTextColor(

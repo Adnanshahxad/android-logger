@@ -50,4 +50,5 @@
     <color name="event_focus">#FF9800</color>  <!-- Orange -->
     <color name="event_call">#9C27B0</color> <!-- Purple -->
     <color name="event_sms">#009688</color> <!-- Teal -->
+    <color name="event_whatsapp">#25D366</color> <!-- WA Green -->
 </resources>

@@ -30,5 +30,7 @@ data class LogEntry(
         const val TYPE_APP_FOCUS = "APP_FOCUS"
         const val TYPE_CALL_INCOMING = "CALL_INCOMING"
         const val TYPE_SMS_RECEIVED = "SMS_RECEIVED"
+        const val TYPE_WHATSAPP_CALL = "WHATSAPP_CALL"
+        const val TYPE_WHATSAPP_MSG = "WHATSAPP_MSG"
     }
 }
