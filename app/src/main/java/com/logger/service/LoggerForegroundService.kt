@@ -18,6 +18,7 @@ import android.os.PowerManager
 import android.provider.CallLog
 import android.provider.Telephony
 import android.telephony.SmsMessage
+import android.telephony.SubscriptionManager
 import android.telephony.TelephonyManager
 import android.util.Log
 import androidx.biometric.BiometricManager
@@ -361,13 +362,15 @@ class LoggerForegroundService : Service() {
             var duration: Long = 0
             var callerNumber: String = phoneNumber ?: "Unknown"
             var callType = "Missed"
+            var simSlot = "Unknown SIM"
 
             val cursor: Cursor? = context.contentResolver.query(
                 CallLog.Calls.CONTENT_URI,
                 arrayOf(
                     CallLog.Calls.NUMBER,
                     CallLog.Calls.DURATION,
-                    CallLog.Calls.TYPE
+                    CallLog.Calls.TYPE,
+                    CallLog.Calls.PHONE_ACCOUNT_ID
                 ),
                 null,
                 null,
@@ -386,19 +389,23 @@ class LoggerForegroundService : Service() {
                         CallLog.Calls.OUTGOING_TYPE -> "Outgoing"
                         else -> "Unknown"
                     }
+
+                    // Resolve SIM slot from PHONE_ACCOUNT_ID
+                    val phoneAccountId = it.getString(it.getColumnIndexOrThrow(CallLog.Calls.PHONE_ACCOUNT_ID))
+                    simSlot = resolveSimSlot(context, phoneAccountId)
                 }
             }
 
             val entry = LogEntry(
                 eventType = LogEntry.TYPE_CALL_INCOMING,
                 details = callerNumber,
-                appName = "$callType Call",
+                appName = "$callType Call • $simSlot",
                 durationMillis = if (duration > 0) duration * 1000 else null,
                 timestamp = System.currentTimeMillis()
             )
 
             getDao().insertLog(entry)
-            Log.d(TAG, "Logged call: $callType from $callerNumber, duration: ${duration}s")
+            Log.d(TAG, "Logged call: $callType from $callerNumber on $simSlot, duration: ${duration}s")
 
         } catch (e: Exception) {
             Log.e(TAG, "Error logging call", e)
@@ -411,6 +418,10 @@ class LoggerForegroundService : Service() {
         try {
             val messages = Telephony.Sms.Intents.getMessagesFromIntent(intent)
             if (messages.isNullOrEmpty()) return
+
+            // Resolve SIM slot from the subscription extra
+            val subscriptionId = intent.getIntExtra("subscription", -1)
+            val simSlot = resolveSimSlotFromSubId(context, subscriptionId)
 
             // Group message parts by sender (multi-part SMS)
             val smsMap = mutableMapOf<String, StringBuilder>()
@@ -435,15 +446,63 @@ class LoggerForegroundService : Service() {
                     val entry = LogEntry(
                         eventType = LogEntry.TYPE_SMS_RECEIVED,
                         details = sender,
-                        appName = storedBody,
+                        appName = "$storedBody \u2022 $simSlot",
                         timestamp = System.currentTimeMillis()
                     )
                     getDao().insertLog(entry)
-                    Log.d(TAG, "Logged SMS from $sender (digits: $digitCount), body: ${storedBody.take(30)}...")
+                    Log.d(TAG, "Logged SMS from $sender on $simSlot (digits: $digitCount)")
                 }
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error handling SMS", e)
         }
+    }
+
+    // ─── SIM Slot Resolution ─────────────────────────────────────────
+
+    private fun resolveSimSlot(context: Context, phoneAccountId: String?): String {
+        if (phoneAccountId == null) return "Unknown SIM"
+        try {
+            val subscriptionManager = context.getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE) as? SubscriptionManager
+                ?: return "Unknown SIM"
+            @Suppress("MissingPermission")
+            val subscriptions = subscriptionManager.activeSubscriptionInfoList ?: return "Unknown SIM"
+            for (info in subscriptions) {
+                // PHONE_ACCOUNT_ID is usually the ICCID or subscription ID
+                if (info.iccId == phoneAccountId || info.subscriptionId.toString() == phoneAccountId) {
+                    return "SIM ${info.simSlotIndex + 1}"
+                }
+            }
+            // Fallback: try to match by index if phoneAccountId is a simple number
+            val subId = phoneAccountId.toIntOrNull()
+            if (subId != null) {
+                for (info in subscriptions) {
+                    if (info.subscriptionId == subId) {
+                        return "SIM ${info.simSlotIndex + 1}"
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error resolving SIM slot", e)
+        }
+        return "Unknown SIM"
+    }
+
+    private fun resolveSimSlotFromSubId(context: Context, subscriptionId: Int): String {
+        if (subscriptionId < 0) return "Unknown SIM"
+        try {
+            val subscriptionManager = context.getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE) as? SubscriptionManager
+                ?: return "Unknown SIM"
+            @Suppress("MissingPermission")
+            val subscriptions = subscriptionManager.activeSubscriptionInfoList ?: return "Unknown SIM"
+            for (info in subscriptions) {
+                if (info.subscriptionId == subscriptionId) {
+                    return "SIM ${info.simSlotIndex + 1}"
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error resolving SIM slot from subId", e)
+        }
+        return "Unknown SIM"
     }
 }
