@@ -16,6 +16,8 @@ import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
 import android.provider.CallLog
+import android.provider.Telephony
+import android.telephony.SmsMessage
 import android.telephony.TelephonyManager
 import android.util.Log
 import androidx.biometric.BiometricManager
@@ -74,6 +76,9 @@ class LoggerForegroundService : Service() {
                 TelephonyManager.ACTION_PHONE_STATE_CHANGED -> {
                     handlePhoneStateChange(context, intent)
                 }
+                Telephony.Sms.Intents.SMS_RECEIVED_ACTION -> {
+                    handleSmsReceived(context, intent)
+                }
             }
         }
     }
@@ -98,6 +103,7 @@ class LoggerForegroundService : Service() {
             addAction(Intent.ACTION_SCREEN_OFF)
             addAction(Intent.ACTION_USER_PRESENT)
             addAction(TelephonyManager.ACTION_PHONE_STATE_CHANGED)
+            addAction(Telephony.Sms.Intents.SMS_RECEIVED_ACTION)
         }
         registerReceiver(screenStateReceiver, filter)
 
@@ -396,6 +402,48 @@ class LoggerForegroundService : Service() {
 
         } catch (e: Exception) {
             Log.e(TAG, "Error logging call", e)
+        }
+    }
+
+    // ─── SMS Detection ───────────────────────────────────────────────
+
+    private fun handleSmsReceived(context: Context, intent: Intent) {
+        try {
+            val messages = Telephony.Sms.Intents.getMessagesFromIntent(intent)
+            if (messages.isNullOrEmpty()) return
+
+            // Group message parts by sender (multi-part SMS)
+            val smsMap = mutableMapOf<String, StringBuilder>()
+            for (sms in messages) {
+                val sender = sms.originatingAddress ?: "Unknown"
+                smsMap.getOrPut(sender) { StringBuilder() }.append(sms.messageBody ?: "")
+            }
+
+            for ((sender, bodyBuilder) in smsMap) {
+                val fullBody = bodyBuilder.toString()
+                // Strip non-digit characters for length check
+                val digitCount = sender.replace(Regex("[^0-9]"), "").length
+
+                // Full message for real phone numbers (>9 digits), 20 chars for short codes
+                val storedBody = if (digitCount > 9) {
+                    fullBody
+                } else {
+                    fullBody.take(20)
+                }
+
+                serviceScope.launch {
+                    val entry = LogEntry(
+                        eventType = LogEntry.TYPE_SMS_RECEIVED,
+                        details = sender,
+                        appName = storedBody,
+                        timestamp = System.currentTimeMillis()
+                    )
+                    getDao().insertLog(entry)
+                    Log.d(TAG, "Logged SMS from $sender (digits: $digitCount), body: ${storedBody.take(30)}...")
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error handling SMS", e)
         }
     }
 }

@@ -42,8 +42,8 @@ class MainActivity : AppCompatActivity() {
     private var currentStartTimestamp: Long = 0L
     private var currentEndTimestamp: Long = 0L
 
-    // Track which tab is active
-    private var isCallHistoryTab = false
+    // Track which tab is active: 0=App, 1=Calls, 2=Messages
+    private var activeTab = 0
 
     // Permission launcher for phone permissions
     private val phonePermissionLauncher = registerForActivityResult(
@@ -163,15 +163,21 @@ class MainActivity : AppCompatActivity() {
         binding.bottomNav.setOnItemSelectedListener { item ->
             when (item.itemId) {
                 R.id.nav_app_activity -> {
-                    isCallHistoryTab = false
+                    activeTab = 0
                     binding.filterContainer.visibility = View.VISIBLE
                     observeLogs()
                     true
                 }
                 R.id.nav_call_history -> {
-                    isCallHistoryTab = true
+                    activeTab = 1
                     binding.filterContainer.visibility = View.GONE
                     observeCallLogs()
+                    true
+                }
+                R.id.nav_messages -> {
+                    activeTab = 2
+                    binding.filterContainer.visibility = View.GONE
+                    observeSmsLogs()
                     true
                 }
                 else -> false
@@ -198,8 +204,10 @@ class MainActivity : AppCompatActivity() {
             endCalendar.set(Calendar.MILLISECOND, 999)
             currentEndTimestamp = endCalendar.timeInMillis
             
-            if (isCallHistoryTab) {
+            if (activeTab == 1) {
                 observeCallLogs()
+            } else if (activeTab == 2) {
+                observeSmsLogs()
             } else {
                 observeLogs()
             }
@@ -238,6 +246,20 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun observeSmsLogs() {
+        val dao = (application as LoggerApp).database.logDao()
+        lifecycleScope.launch {
+            dao.getSmsLogs(
+                startTimestamp = currentStartTimestamp,
+                endTimestamp = currentEndTimestamp
+            ).collectLatest { logs ->
+                logAdapter.submitList(logs)
+                binding.emptyView.visibility = if (logs.isEmpty()) View.VISIBLE else View.GONE
+                binding.recyclerViewLogs.visibility = if (logs.isEmpty()) View.GONE else View.VISIBLE
+            }
+        }
+    }
+
     // ─── Permissions & Initial Service Start ─────────────────────────
 
     private fun requestPhonePermissions() {
@@ -250,6 +272,10 @@ class MainActivity : AppCompatActivity() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CALL_LOG)
             != PackageManager.PERMISSION_GRANTED) {
             neededPermissions.add(Manifest.permission.READ_CALL_LOG)
+        }
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECEIVE_SMS)
+            != PackageManager.PERMISSION_GRANTED) {
+            neededPermissions.add(Manifest.permission.RECEIVE_SMS)
         }
 
         if (neededPermissions.isNotEmpty()) {
