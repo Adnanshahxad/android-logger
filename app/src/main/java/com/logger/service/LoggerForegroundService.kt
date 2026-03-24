@@ -19,7 +19,6 @@ import android.provider.CallLog
 import android.provider.Telephony
 import android.telephony.SmsMessage
 import android.telephony.SubscriptionManager
-import android.telephony.TelephonyCallback
 import android.telephony.TelephonyManager
 import android.util.Log
 import androidx.biometric.BiometricManager
@@ -94,8 +93,6 @@ class LoggerForegroundService : Service() {
     // Call and SMS state tracking
     private var lastCallLogId: Long = 0L
     private var lastSmsId: Long = 0L
-    private var telephonyCallback: TelephonyCallback? = null
-    private var lastTelephonyCallState = TelephonyManager.CALL_STATE_IDLE
 
     override fun onCreate() {
         super.onCreate()
@@ -116,9 +113,6 @@ class LoggerForegroundService : Service() {
         if (powerManager?.isInteractive != false) {
             startPolling()
         }
-
-        // Register TelephonyCallback for reliable call state detection
-        registerTelephonyCallback()
         
         Log.d(TAG, "Logger service started (Battery Optimized)")
 
@@ -152,13 +146,6 @@ class LoggerForegroundService : Service() {
         pollingJob?.cancel()
         try {
             unregisterReceiver(screenStateReceiver)
-        } catch (e: Exception) {
-            // Ignored
-        }
-        // Unregister TelephonyCallback
-        try {
-            val tm = getSystemService(Context.TELEPHONY_SERVICE) as? TelephonyManager
-            telephonyCallback?.let { tm?.unregisterTelephonyCallback(it) }
         } catch (e: Exception) {
             // Ignored
         }
@@ -418,12 +405,12 @@ class LoggerForegroundService : Service() {
                     val date = it.getLong(it.getColumnIndexOrThrow(CallLog.Calls.DATE))
                     val phoneAccountId = it.getString(it.getColumnIndexOrThrow(CallLog.Calls.PHONE_ACCOUNT_ID))
 
-                    val callType = when (type) {
-                        CallLog.Calls.INCOMING_TYPE -> "Answered"
-                        CallLog.Calls.MISSED_TYPE -> "Missed"
-                        CallLog.Calls.REJECTED_TYPE -> "Rejected"
-                        CallLog.Calls.OUTGOING_TYPE -> "Outgoing"
-                        else -> "Unknown"
+                    val callTypeStr = when (type) {
+                        CallLog.Calls.INCOMING_TYPE -> "Answered Call"
+                        CallLog.Calls.MISSED_TYPE -> "Missed Call"
+                        CallLog.Calls.REJECTED_TYPE -> "Rejected Call"
+                        CallLog.Calls.OUTGOING_TYPE -> "Call_Outgoing"
+                        else -> "Unknown Call"
                     }
 
                     val simInfo = resolveSimSlot(this@LoggerForegroundService, phoneAccountId)
@@ -431,14 +418,14 @@ class LoggerForegroundService : Service() {
                     val entry = LogEntry(
                         eventType = LogEntry.TYPE_CALL_INCOMING,
                         details = number,
-                        appName = "[P] $callType Call \u2022 $simInfo",
+                        appName = "$callTypeStr \u2022 $simInfo",
                         durationMillis = if (duration > 0) duration * 1000 else null,
                         timestamp = date
                     )
 
                     getDao().insertLog(entry)
                     lastCallLogId = id
-                    Log.d(TAG, "Polled call: $callType from $number on $simInfo, duration: ${duration}s")
+                    Log.d(TAG, "Polled call: $callTypeStr from $number on $simInfo, duration: ${duration}s")
                 }
             }
 
@@ -512,99 +499,6 @@ class LoggerForegroundService : Service() {
             Log.w(TAG, "No READ_SMS permission, skipping SMS polling")
         } catch (e: Exception) {
             Log.e(TAG, "Error polling SMS log", e)
-        }
-    }
-
-    // ─── Call Detection (TelephonyCallback) ──────────────────────────
-
-    @Suppress("MissingPermission")
-    private fun registerTelephonyCallback() {
-        try {
-            val tm = getSystemService(Context.TELEPHONY_SERVICE) as? TelephonyManager ?: return
-
-            val callback = object : TelephonyCallback(), TelephonyCallback.CallStateListener {
-                override fun onCallStateChanged(state: Int) {
-                    Log.d(TAG, "[T] Call state changed: $state (prev: $lastTelephonyCallState)")
-
-                    when (state) {
-                        TelephonyManager.CALL_STATE_RINGING -> {
-                            Log.d(TAG, "[T] Phone ringing")
-                        }
-                        TelephonyManager.CALL_STATE_IDLE -> {
-                            if (lastTelephonyCallState == TelephonyManager.CALL_STATE_RINGING ||
-                                lastTelephonyCallState == TelephonyManager.CALL_STATE_OFFHOOK) {
-                                // Call ended — query call log after delay for system to write entry
-                                serviceScope.launch {
-                                    delay(3000)
-                                    logLatestCallFromDB("[T]")
-                                }
-                            }
-                        }
-                        TelephonyManager.CALL_STATE_OFFHOOK -> {
-                            Log.d(TAG, "[T] Call active (offhook)")
-                        }
-                    }
-                    lastTelephonyCallState = state
-                }
-            }
-
-            tm.registerTelephonyCallback(mainExecutor, callback)
-            telephonyCallback = callback
-            Log.d(TAG, "[T] TelephonyCallback registered successfully")
-        } catch (e: Exception) {
-            Log.e(TAG, "[T] Failed to register TelephonyCallback", e)
-        }
-    }
-
-    private suspend fun logLatestCallFromDB(prefix: String) {
-        try {
-            val cursor: Cursor? = contentResolver.query(
-                CallLog.Calls.CONTENT_URI,
-                arrayOf(
-                    CallLog.Calls._ID,
-                    CallLog.Calls.NUMBER,
-                    CallLog.Calls.DURATION,
-                    CallLog.Calls.TYPE,
-                    CallLog.Calls.DATE,
-                    CallLog.Calls.PHONE_ACCOUNT_ID
-                ),
-                null, null,
-                "${CallLog.Calls.DATE} DESC LIMIT 1"
-            )
-            cursor?.use {
-                if (it.moveToFirst()) {
-                    val id = it.getLong(it.getColumnIndexOrThrow(CallLog.Calls._ID))
-                    val number = it.getString(it.getColumnIndexOrThrow(CallLog.Calls.NUMBER)) ?: "Unknown"
-                    val duration = it.getLong(it.getColumnIndexOrThrow(CallLog.Calls.DURATION))
-                    val type = it.getInt(it.getColumnIndexOrThrow(CallLog.Calls.TYPE))
-                    val date = it.getLong(it.getColumnIndexOrThrow(CallLog.Calls.DATE))
-                    val phoneAccountId = it.getString(it.getColumnIndexOrThrow(CallLog.Calls.PHONE_ACCOUNT_ID))
-
-                    val callType = when (type) {
-                        CallLog.Calls.INCOMING_TYPE -> "Answered"
-                        CallLog.Calls.MISSED_TYPE -> "Missed"
-                        CallLog.Calls.REJECTED_TYPE -> "Rejected"
-                        CallLog.Calls.OUTGOING_TYPE -> "Outgoing"
-                        else -> "Unknown"
-                    }
-
-                    val simInfo = resolveSimSlot(this@LoggerForegroundService, phoneAccountId)
-
-                    val entry = LogEntry(
-                        eventType = LogEntry.TYPE_CALL_INCOMING,
-                        details = number,
-                        appName = "$prefix $callType Call \u2022 $simInfo",
-                        durationMillis = if (duration > 0) duration * 1000 else null,
-                        timestamp = date
-                    )
-                    getDao().insertLog(entry)
-                    // Also update lastCallLogId so polling doesn't duplicate
-                    if (id > lastCallLogId) lastCallLogId = id
-                    Log.d(TAG, "$prefix Logged call: $callType from $number on $simInfo, duration: ${duration}s")
-                }
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "$prefix Error logging call from DB", e)
         }
     }
 
