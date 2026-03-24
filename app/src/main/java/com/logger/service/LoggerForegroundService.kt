@@ -13,12 +13,14 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.database.ContentObserver
 import android.database.Cursor
+import android.net.Uri
 import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.os.PowerManager
 import android.provider.CallLog
+import android.provider.ContactsContract
 import android.provider.Telephony
 import android.telephony.SmsMessage
 import android.telephony.SubscriptionManager
@@ -378,6 +380,28 @@ class LoggerForegroundService : Service() {
         }
     }
 
+    private fun resolveContactName(context: Context, phoneNumber: String): String? {
+        if (phoneNumber.isBlank() || phoneNumber == "Unknown") return null
+        // Check for READ_CONTACTS permission
+        if (context.checkSelfPermission(android.Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
+            return null
+        }
+        
+        var contactName: String? = null
+        try {
+            val uri = Uri.withAppendedPath(ContactsContract.PhoneLookup.CONTENT_FILTER_URI, Uri.encode(phoneNumber))
+            val projection = arrayOf(ContactsContract.PhoneLookup.DISPLAY_NAME)
+            context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    contactName = cursor.getString(0)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error resolving contact name for $phoneNumber", e)
+        }
+        return contactName
+    }
+
     // ─── Call Detection (Polling-based) ───────────────────────────────
 
     private suspend fun initializeLastIds() {
@@ -451,10 +475,12 @@ class LoggerForegroundService : Service() {
                     }
 
                     val simInfo = resolveSimSlot(this@LoggerForegroundService, phoneAccountId)
+                    val contactName = resolveContactName(this@LoggerForegroundService, number)
+                    val displayDetails = if (contactName != null) "$contactName ($number)" else number
 
                     val entry = LogEntry(
                         eventType = LogEntry.TYPE_CALL_INCOMING,
-                        details = number,
+                        details = displayDetails,
                         appName = "$callTypeStr \u2022 $simInfo",
                         durationMillis = if (duration > 0) duration * 1000 else null,
                         timestamp = date
@@ -518,10 +544,12 @@ class LoggerForegroundService : Service() {
                     val digitCount = address.replace(Regex("[^0-9]"), "").length
                     val storedBody = if (digitCount > 9) body else body.take(20)
                     val simInfo = resolveSimSlotFromSubId(this@LoggerForegroundService, subId)
+                    val contactName = resolveContactName(this@LoggerForegroundService, address)
+                    val displayDetails = if (contactName != null) "$contactName ($address)" else address
 
                     val entry = LogEntry(
                         eventType = LogEntry.TYPE_SMS_RECEIVED,
-                        details = address,
+                        details = displayDetails,
                         appName = "[$direction] $storedBody \u2022 $simInfo",
                         timestamp = date
                     )
