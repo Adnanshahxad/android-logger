@@ -112,7 +112,24 @@ class MainActivity : AppCompatActivity() {
             layoutManager = LinearLayoutManager(this@MainActivity)
             adapter = logAdapter
         }
-        observeLogs()
+        refreshCurrentTab()
+    }
+
+    private fun refreshCurrentTab() {
+        when (activeTab) {
+            0 -> {
+                binding.filterContainer.visibility = View.VISIBLE
+                observeLogs()
+            }
+            1 -> {
+                binding.filterContainer.visibility = View.GONE
+                observeCallLogs()
+            }
+            2 -> {
+                binding.filterContainer.visibility = View.GONE
+                observeSmsLogs()
+            }
+        }
     }
 
     private fun setupDropdownFilters() {
@@ -314,6 +331,8 @@ class MainActivity : AppCompatActivity() {
         if (hasUsageStatsPermission() && settings.isLoggerEnabled) {
             startLogging()
         }
+        // Refresh data to match the currently selected tab
+        refreshCurrentTab()
     }
 
     private fun startLogging() {
