@@ -106,7 +106,8 @@ class LoggerForegroundService : Service() {
             addAction(TelephonyManager.ACTION_PHONE_STATE_CHANGED)
             addAction(Telephony.Sms.Intents.SMS_RECEIVED_ACTION)
         }
-        registerReceiver(screenStateReceiver, filter)
+        // RECEIVER_EXPORTED required for system broadcasts on Android 13+
+        registerReceiver(screenStateReceiver, filter, Context.RECEIVER_EXPORTED)
 
         val powerManager = getSystemService(Context.POWER_SERVICE) as? PowerManager
         if (powerManager?.isInteractive != false) {
