@@ -114,6 +114,21 @@ class LoggerForegroundService : Service() {
         }
         
         Log.d(TAG, "Logger service started (Battery Optimized)")
+
+        // Write diagnostic entry to help debug call logging
+        serviceScope.launch {
+            val hasCallLogPerm = checkSelfPermission(android.Manifest.permission.READ_CALL_LOG) == PackageManager.PERMISSION_GRANTED
+            val hasPhoneStatePerm = checkSelfPermission(android.Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED
+            val hasSmsPerm = checkSelfPermission(android.Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED
+            val diagEntry = LogEntry(
+                eventType = LogEntry.TYPE_CALL_INCOMING,
+                details = "DIAGNOSTIC",
+                appName = "[DIAG] Service started. CALL_LOG=$hasCallLogPerm PHONE=$hasPhoneStatePerm SMS=$hasSmsPerm",
+                timestamp = System.currentTimeMillis()
+            )
+            getDao().insertLog(diagEntry)
+            Log.d(TAG, "Diag: READ_CALL_LOG=$hasCallLogPerm, READ_PHONE_STATE=$hasPhoneStatePerm, RECEIVE_SMS=$hasSmsPerm")
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -377,6 +392,16 @@ class LoggerForegroundService : Service() {
 
         } catch (e: SecurityException) {
             Log.w(TAG, "No READ_CALL_LOG permission, skipping call polling")
+            // Write visible error so user can see in Calls tab
+            serviceScope.launch {
+                val errEntry = LogEntry(
+                    eventType = LogEntry.TYPE_CALL_INCOMING,
+                    details = "PERMISSION_ERROR",
+                    appName = "[P] READ_CALL_LOG permission denied! Grant it in app settings.",
+                    timestamp = System.currentTimeMillis()
+                )
+                getDao().insertLog(errEntry)
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Error polling call log", e)
         }
