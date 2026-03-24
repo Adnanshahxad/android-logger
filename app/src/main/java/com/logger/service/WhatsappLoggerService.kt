@@ -22,13 +22,19 @@ class WhatsappLoggerService : NotificationListenerService() {
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
         val packageName = sbn.packageName
+        Log.d(TAG, "Raw notification posted from: $packageName")
+
         if (packageName != "com.whatsapp" && packageName != "com.whatsapp.w4b") return
 
         val notification = sbn.notification
-        val title = notification.extras.getCharSequence(Notification.EXTRA_TITLE)?.toString() ?: return
+        val title = notification.extras.getCharSequence(Notification.EXTRA_TITLE)?.toString() ?: "WhatsApp"
         val text = notification.extras.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString() 
                    ?: notification.extras.getCharSequence(Notification.EXTRA_TEXT)?.toString() 
-                   ?: return
+                   ?: notification.tickerText?.toString()
+                   ?: ""
+
+        Log.d(TAG, "WA Notification Payload -> Title: '$title', Text: '$text'")
+        if (title == "WhatsApp" && text.isBlank()) return
 
         val isCall = text.contains("voice call", ignoreCase = true) || 
                      text.contains("video call", ignoreCase = true) ||
