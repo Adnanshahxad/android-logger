@@ -75,8 +75,7 @@ class LoggerForegroundService : Service() {
                     logUnlockEvent(context)
                 }
                 TelephonyManager.ACTION_PHONE_STATE_CHANGED -> {
-                    // Kept for backup but primary detection is via polling
-                    Log.d(TAG, "Phone state changed (broadcast)")
+                    handlePhoneStateChange(intent)
                 }
                 Telephony.Sms.Intents.SMS_RECEIVED_ACTION -> {
                     handleSmsReceived(context, intent)
@@ -364,7 +363,7 @@ class LoggerForegroundService : Service() {
                     val entry = LogEntry(
                         eventType = LogEntry.TYPE_CALL_INCOMING,
                         details = number,
-                        appName = "$callType Call \u2022 $simInfo",
+                        appName = "[P] $callType Call • $simInfo",
                         durationMillis = if (duration > 0) duration * 1000 else null,
                         timestamp = date
                     )
@@ -381,6 +380,81 @@ class LoggerForegroundService : Service() {
         } catch (e: Exception) {
             Log.e(TAG, "Error polling call log", e)
         }
+    }
+
+    // ─── Call Detection (Broadcast backup) ───────────────────────────
+
+    private var lastBroadcastCallState = TelephonyManager.CALL_STATE_IDLE
+
+    private fun handlePhoneStateChange(intent: Intent) {
+        val stateStr = intent.getStringExtra(TelephonyManager.EXTRA_STATE) ?: return
+        val state = when (stateStr) {
+            TelephonyManager.EXTRA_STATE_IDLE -> TelephonyManager.CALL_STATE_IDLE
+            TelephonyManager.EXTRA_STATE_RINGING -> TelephonyManager.CALL_STATE_RINGING
+            TelephonyManager.EXTRA_STATE_OFFHOOK -> TelephonyManager.CALL_STATE_OFFHOOK
+            else -> return
+        }
+
+        if (state == lastBroadcastCallState) return
+
+        when (state) {
+            TelephonyManager.CALL_STATE_RINGING -> {
+                Log.d(TAG, "[B] Phone ringing")
+            }
+            TelephonyManager.CALL_STATE_IDLE -> {
+                if (lastBroadcastCallState == TelephonyManager.CALL_STATE_RINGING || lastBroadcastCallState == TelephonyManager.CALL_STATE_OFFHOOK) {
+                    // Call ended — query the system call log after a delay
+                    serviceScope.launch {
+                        delay(3000)
+                        try {
+                            val cursor: Cursor? = contentResolver.query(
+                                CallLog.Calls.CONTENT_URI,
+                                arrayOf(
+                                    CallLog.Calls.NUMBER,
+                                    CallLog.Calls.DURATION,
+                                    CallLog.Calls.TYPE,
+                                    CallLog.Calls.PHONE_ACCOUNT_ID
+                                ),
+                                null,
+                                null,
+                                "${CallLog.Calls.DATE} DESC LIMIT 1"
+                            )
+                            cursor?.use {
+                                if (it.moveToFirst()) {
+                                    val number = it.getString(it.getColumnIndexOrThrow(CallLog.Calls.NUMBER)) ?: "Unknown"
+                                    val duration = it.getLong(it.getColumnIndexOrThrow(CallLog.Calls.DURATION))
+                                    val type = it.getInt(it.getColumnIndexOrThrow(CallLog.Calls.TYPE))
+                                    val phoneAccountId = it.getString(it.getColumnIndexOrThrow(CallLog.Calls.PHONE_ACCOUNT_ID))
+                                    val callType = when (type) {
+                                        CallLog.Calls.INCOMING_TYPE -> "Answered"
+                                        CallLog.Calls.MISSED_TYPE -> "Missed"
+                                        CallLog.Calls.REJECTED_TYPE -> "Rejected"
+                                        CallLog.Calls.OUTGOING_TYPE -> "Outgoing"
+                                        else -> "Unknown"
+                                    }
+                                    val simInfo = resolveSimSlot(this@LoggerForegroundService, phoneAccountId)
+                                    val entry = LogEntry(
+                                        eventType = LogEntry.TYPE_CALL_INCOMING,
+                                        details = number,
+                                        appName = "[B] $callType Call \u2022 $simInfo",
+                                        durationMillis = if (duration > 0) duration * 1000 else null,
+                                        timestamp = System.currentTimeMillis()
+                                    )
+                                    getDao().insertLog(entry)
+                                    Log.d(TAG, "[B] Logged call: $callType from $number on $simInfo")
+                                }
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "[B] Error logging call", e)
+                        }
+                    }
+                }
+            }
+            TelephonyManager.CALL_STATE_OFFHOOK -> {
+                Log.d(TAG, "[B] Call answered")
+            }
+        }
+        lastBroadcastCallState = state
     }
 
     // ─── SMS Detection ───────────────────────────────────────────────
