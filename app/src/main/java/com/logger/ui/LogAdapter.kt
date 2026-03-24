@@ -63,8 +63,8 @@ class LogAdapter : ListAdapter<LogEntry, LogAdapter.LogViewHolder>(LogDiffCallba
                 LogEntry.TYPE_APP_OPENED -> R.color.event_opened
                 LogEntry.TYPE_APP_CLOSED -> R.color.event_closed
                 LogEntry.TYPE_APP_FOCUS -> R.color.event_focus
-                LogEntry.TYPE_CALL_INCOMING -> R.color.purple_500
-                LogEntry.TYPE_SMS_RECEIVED -> R.color.teal_700
+                LogEntry.TYPE_CALL_INCOMING -> R.color.event_call
+                LogEntry.TYPE_SMS_RECEIVED -> R.color.event_sms
                 else -> R.color.event_focus
             }
             binding.textEventType.setTextColor(
