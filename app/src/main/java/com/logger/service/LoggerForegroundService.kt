@@ -11,9 +11,12 @@ import android.app.usage.UsageStatsManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.database.ContentObserver
 import android.database.Cursor
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.os.PowerManager
 import android.provider.CallLog
 import android.provider.Telephony
@@ -94,6 +97,10 @@ class LoggerForegroundService : Service() {
     private var lastCallLogId: Long = 0L
     private var lastSmsId: Long = 0L
 
+    // Database observers for real-time tracking
+    private var callLogObserver: ContentObserver? = null
+    private var smsLogObserver: ContentObserver? = null
+
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
@@ -113,8 +120,32 @@ class LoggerForegroundService : Service() {
         if (powerManager?.isInteractive != false) {
             startPolling()
         }
+
+        // Setup real-time database observers
+        val handler = Handler(Looper.getMainLooper())
         
-        Log.d(TAG, "Logger service started (Battery Optimized)")
+        callLogObserver = object : ContentObserver(handler) {
+            override fun onChange(selfChange: Boolean) {
+                Log.d(TAG, "CallLog changed! Running instant poll...")
+                serviceScope.launch { pollCallLog() }
+            }
+        }
+        
+        smsLogObserver = object : ContentObserver(handler) {
+            override fun onChange(selfChange: Boolean) {
+                Log.d(TAG, "SmsLog changed! Running instant poll...")
+                serviceScope.launch { pollSmsLog() }
+            }
+        }
+
+        try {
+            contentResolver.registerContentObserver(CallLog.Calls.CONTENT_URI, true, callLogObserver!!)
+            contentResolver.registerContentObserver(Telephony.Sms.CONTENT_URI, true, smsLogObserver!!)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to register observers", e)
+        }
+        
+        Log.d(TAG, "Logger service started (Battery Optimized + Observers)")
 
         // Write diagnostic entry to help debug call logging
         serviceScope.launch {
@@ -146,6 +177,12 @@ class LoggerForegroundService : Service() {
         pollingJob?.cancel()
         try {
             unregisterReceiver(screenStateReceiver)
+        } catch (e: Exception) {
+            // Ignored
+        }
+        try {
+            callLogObserver?.let { contentResolver.unregisterContentObserver(it) }
+            smsLogObserver?.let { contentResolver.unregisterContentObserver(it) }
         } catch (e: Exception) {
             // Ignored
         }
