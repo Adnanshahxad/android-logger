@@ -38,6 +38,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 class LoggerForegroundService : Service() {
 
@@ -102,6 +104,10 @@ class LoggerForegroundService : Service() {
     // Database observers for real-time tracking
     private var callLogObserver: ContentObserver? = null
     private var smsLogObserver: ContentObserver? = null
+
+    // Synchronization locks to prevent observer & polling loop collisions
+    private val callLogMutex = Mutex()
+    private val smsLogMutex = Mutex()
 
     override fun onCreate() {
         super.onCreate()
@@ -225,6 +231,7 @@ class LoggerForegroundService : Service() {
     // ─── App Usage & Unlock Polling ───────────────────────────────────
 
     private fun startPolling() {
+        pollingJob?.cancel() // Prevent duplicate polling loops
         pollingJob = serviceScope.launch {
             while (isActive) {
                 try {
@@ -440,7 +447,7 @@ class LoggerForegroundService : Service() {
         }
     }
 
-    private suspend fun pollCallLog() {
+    private suspend fun pollCallLog() = callLogMutex.withLock {
         try {
             val cursor: Cursor? = contentResolver.query(
                 CallLog.Calls.CONTENT_URI,
@@ -501,7 +508,7 @@ class LoggerForegroundService : Service() {
 
     // ─── SMS Detection (Polling-based) ───────────────────────────────
 
-    private suspend fun pollSmsLog() {
+    private suspend fun pollSmsLog() = smsLogMutex.withLock {
         try {
             val cursor: Cursor? = contentResolver.query(
                 Telephony.Sms.CONTENT_URI,
