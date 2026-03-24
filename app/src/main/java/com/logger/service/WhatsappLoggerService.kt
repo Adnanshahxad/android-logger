@@ -33,17 +33,6 @@ class WhatsappLoggerService : NotificationListenerService() {
                    ?: notification.tickerText?.toString()
                    ?: ""
 
-        Log.d(TAG, "WA Notification Payload -> Title: '$title', Text: '$text'")
-        
-        // DEBUG: Force print to UI so user can see it in WhatsApp tab
-        val debugEntry = LogEntry(
-            eventType = LogEntry.TYPE_WHATSAPP_MSG,
-            details = "RAW: $title",
-            appName = text.take(150),
-            timestamp = System.currentTimeMillis()
-        )
-        insertLog(debugEntry)
-        
         if (title == "WhatsApp" && text.isBlank()) return
 
         val isCall = text.contains("voice call", ignoreCase = true) || 
