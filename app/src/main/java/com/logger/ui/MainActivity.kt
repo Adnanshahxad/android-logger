@@ -409,7 +409,6 @@ class MainActivity : AppCompatActivity() {
                 packageName
             )
         }
-        }
         return mode == AppOpsManager.MODE_ALLOWED
     }
 
