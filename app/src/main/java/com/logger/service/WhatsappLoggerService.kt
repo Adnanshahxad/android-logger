@@ -25,8 +25,10 @@ class WhatsappLoggerService : NotificationListenerService() {
         if (packageName != "com.whatsapp" && packageName != "com.whatsapp.w4b") return
 
         val notification = sbn.notification
-        val title = notification.extras.getString(Notification.EXTRA_TITLE) ?: return
-        val text = notification.extras.getString(Notification.EXTRA_TEXT) ?: return
+        val title = notification.extras.getCharSequence(Notification.EXTRA_TITLE)?.toString() ?: return
+        val text = notification.extras.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString() 
+                   ?: notification.extras.getCharSequence(Notification.EXTRA_TEXT)?.toString() 
+                   ?: return
 
         val isCall = text.contains("voice call", ignoreCase = true) || 
                      text.contains("video call", ignoreCase = true) ||
