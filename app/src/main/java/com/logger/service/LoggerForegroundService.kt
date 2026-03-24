@@ -470,7 +470,7 @@ class LoggerForegroundService : Service() {
             for (info in subscriptions) {
                 // PHONE_ACCOUNT_ID is usually the ICCID or subscription ID
                 if (info.iccId == phoneAccountId || info.subscriptionId.toString() == phoneAccountId) {
-                    return "SIM ${info.simSlotIndex + 1}"
+                    return getSimNumber(info)
                 }
             }
             // Fallback: try to match by index if phoneAccountId is a simple number
@@ -478,7 +478,7 @@ class LoggerForegroundService : Service() {
             if (subId != null) {
                 for (info in subscriptions) {
                     if (info.subscriptionId == subId) {
-                        return "SIM ${info.simSlotIndex + 1}"
+                        return getSimNumber(info)
                     }
                 }
             }
@@ -497,12 +497,21 @@ class LoggerForegroundService : Service() {
             val subscriptions = subscriptionManager.activeSubscriptionInfoList ?: return "Unknown SIM"
             for (info in subscriptions) {
                 if (info.subscriptionId == subscriptionId) {
-                    return "SIM ${info.simSlotIndex + 1}"
+                    return getSimNumber(info)
                 }
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error resolving SIM slot from subId", e)
         }
         return "Unknown SIM"
+    }
+
+    @Suppress("MissingPermission", "DEPRECATION")
+    private fun getSimNumber(info: android.telephony.SubscriptionInfo): String {
+        // Try to get the phone number from SubscriptionInfo
+        val number = info.number
+        if (!number.isNullOrBlank()) return number
+        // Fallback to SIM slot label
+        return "SIM ${info.simSlotIndex + 1}"
     }
 }
