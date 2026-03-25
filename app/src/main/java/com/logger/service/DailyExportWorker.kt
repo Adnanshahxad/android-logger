@@ -52,11 +52,15 @@ class DailyExportWorker(
             val sdf = SimpleDateFormat("yyyy_MM_dd_HH_mm_ss", Locale.getDefault())
             val dateStr = sdf.format(Date())
             
-            val tempFile = File(context.cacheDir, "Daily_Logs_$dateStr.xls")
+            val manufacturer = android.os.Build.MANUFACTURER.replace(" ", "_").replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
+            val model = android.os.Build.MODEL.replace(" ", "_")
+            val baseFileName = "Logger_${manufacturer}_${model}_$dateStr.xls"
+            
+            val tempFile = File(context.cacheDir, "Temp_$baseFileName")
             
             buildExcelFile(tempFile, logs)
             
-            uploadToGoogleDrive(tempFile, "Logger_Daily_Export_$dateStr.xls")
+            uploadToGoogleDrive(tempFile, baseFileName)
             
             tempFile.delete()
             Log.d(TAG, "Google Drive Sync successful!")
