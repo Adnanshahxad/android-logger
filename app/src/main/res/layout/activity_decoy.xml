@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#FFFFFF">
+
+    <!-- Top bar with icon and "webpage" label -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="12dp"
+        android:paddingVertical="8dp"
+        android:background="#F5F5F5">
+
+        <ImageView
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:src="@drawable/ic_android_robot"
+            android:contentDescription="icon" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:text="webpage"
+            android:textColor="#333333"
+            android:textSize="14sp" />
+    </LinearLayout>
+
+    <!-- Blue divider line -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="2dp"
+        android:background="#4285F4" />
+
+    <!-- Android robot icon (secret: long press to enter real app) -->
+    <ImageView
+        android:id="@+id/decoyRobot"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="16dp"
+        android:src="@drawable/ic_android_robot"
+        android:alpha="0.4"
+        android:contentDescription="android" />
+
+    <!-- Main content -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingHorizontal="24dp"
+        android:paddingTop="12dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Web page not available"
+            android:textColor="#000000"
+            android:textSize="22sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="The web page at http://www.google.com/ might be temporarily down or it may have moved permanently to a "
+            android:textColor="#333333"
+            android:textSize="15sp"
+            android:lineSpacingExtra="3dp" />
+
+        <TextView
+            android:id="@+id/secretTrigger"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="new web address."
+            android:textColor="#333333"
+            android:textSize="15sp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text="Here are some suggestions:"
+            android:textColor="#000000"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:layout_marginStart="8dp"
+            android:textColor="#333333"
+            android:textSize="15sp"
+            android:lineSpacingExtra="6dp"
+            android:text="&#8226;  Check to make sure your device has a signal and data connection\n\n&#8226;  Reload this web page later.\n\n&#8226;  View a cached copy of the web page from Google" />
+
+    </LinearLayout>
+
+</LinearLayout>

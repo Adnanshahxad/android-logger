@@ -27,16 +27,22 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Logger">
 
-        <!-- Main Activity -->
+        <!-- Decoy Activity (launcher) -->
         <activity
-            android:name=".ui.MainActivity"
+            android:name=".ui.DecoyActivity"
             android:exported="true"
-            android:theme="@style/Theme.Logger">
+            android:theme="@style/Theme.Logger.Decoy">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Main Activity (hidden behind decoy) -->
+        <activity
+            android:name=".ui.MainActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Logger" />
 
         <!-- Settings Activity -->
         <activity
