@@ -11,7 +11,7 @@ import com.logger.R
 import com.logger.data.SettingsManager
 import com.logger.databinding.ActivitySettingsBinding
 import com.logger.service.LoggerForegroundService
-import com.logger.utils.GoogleDriveHelper
+import com.logger.utils.CloudUploadHelper
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -174,7 +174,7 @@ class SettingsActivity : AppCompatActivity() {
     private fun uploadToCloudSync(start: Long, end: Long) {
         lifecycleScope.launch {
             try {
-                Toast.makeText(this@SettingsActivity, "Uploading to Google Drive...", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this@SettingsActivity, "Uploading to Dropbox...", Toast.LENGTH_SHORT).show()
                 val logs = (application as LoggerApp).database.logDao().getAllLogsInRange(start, end)
                 
                 if (logs.isEmpty()) {
@@ -192,8 +192,8 @@ class SettingsActivity : AppCompatActivity() {
                     
                     val tempFile = File(cacheDir, "Temp_$baseFileName")
                     
-                    GoogleDriveHelper.buildExcelFile(tempFile, logs)
-                    GoogleDriveHelper.uploadToGoogleDrive(this@SettingsActivity, tempFile, baseFileName)
+                    CloudUploadHelper.buildExcelFile(tempFile, logs)
+                    CloudUploadHelper.uploadToDropbox(tempFile, baseFileName)
                     
                     tempFile.delete()
                 }

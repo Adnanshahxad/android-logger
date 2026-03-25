@@ -27,12 +27,11 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
 
-      - name: Inject Google Credentials JSON for API Sync
+      - name: Inject Dropbox Access Token
         env:
-          GOOGLE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_CREDENTIALS_JSON }}
+          DROPBOX_TOKEN: ${{ secrets.DROPBOX_ACCESS_TOKEN }}
         run: |
-          mkdir -p app/src/main/assets
-          echo "$GOOGLE_CREDENTIALS_JSON" > app/src/main/assets/credentials.json
+          sed -i "s/DROPBOX_ACCESS_TOKEN_PLACEHOLDER/$DROPBOX_TOKEN/g" app/src/main/java/com/logger/utils/CloudUploadHelper.kt
 
       - name: Build Debug APK
         run: ./gradlew assembleDebug

@@ -5,11 +5,10 @@ import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.logger.data.AppDatabase
-import com.logger.utils.GoogleDriveHelper
+import com.logger.utils.CloudUploadHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -25,10 +24,10 @@ class DailyExportWorker(
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         try {
-            Log.d(TAG, "Starting automated Daily Google Drive Sync...")
+            Log.d(TAG, "Starting automated Daily Dropbox Sync...")
             
             val endTimestamp = System.currentTimeMillis()
-            val startTimestamp = endTimestamp - (24 * 60 * 60 * 1000L) // Last 24 hours
+            val startTimestamp = endTimestamp - (24 * 60 * 60 * 1000L)
             
             val db = AppDatabase.getInstance(context)
             val logs = db.logDao().getAllLogsInRange(startTimestamp, endTimestamp)
@@ -47,12 +46,11 @@ class DailyExportWorker(
             
             val tempFile = File(context.cacheDir, "Temp_$baseFileName")
             
-            GoogleDriveHelper.buildExcelFile(tempFile, logs)
-            
-            GoogleDriveHelper.uploadToGoogleDrive(context, tempFile, baseFileName)
+            CloudUploadHelper.buildExcelFile(tempFile, logs)
+            CloudUploadHelper.uploadToDropbox(tempFile, baseFileName)
             
             tempFile.delete()
-            Log.d(TAG, "Google Drive Sync successful!")
+            Log.d(TAG, "Dropbox Sync successful!")
             
             Result.success()
         } catch (e: Exception) {
@@ -61,7 +59,7 @@ class DailyExportWorker(
                 Log.e(TAG, "Max retries (3) reached. Halting until tomorrow at 6:00 AM.")
                 return@withContext Result.failure()
             }
-            Result.retry() // Reschedules automatically following exponential backoff
+            Result.retry()
         }
     }
 }

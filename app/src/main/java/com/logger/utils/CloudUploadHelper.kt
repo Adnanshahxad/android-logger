@@ -1,28 +1,32 @@
 package com.logger.utils
 
-import android.content.Context
-import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport
-import com.google.api.client.http.FileContent
-import com.google.api.client.json.gson.GsonFactory
-import com.google.api.services.drive.Drive
-import com.google.api.services.drive.DriveScopes
-import com.google.auth.http.HttpCredentialsAdapter
-import com.google.auth.oauth2.GoogleCredentials
 import com.logger.data.LogEntry
 import jxl.Workbook
 import jxl.write.Label
 import jxl.write.WritableWorkbook
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.asRequestBody
 import java.io.File
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.concurrent.TimeUnit
 
-object GoogleDriveHelper {
+object CloudUploadHelper {
 
-    private const val FOLDER_ID = "1rSToL1_lxoBHYhkZF2REZUwu7bOXCIoU"
+    private const val DROPBOX_TOKEN = "DROPBOX_ACCESS_TOKEN_PLACEHOLDER"
+    private const val UPLOAD_URL = "https://content.dropboxapi.com/2/files/upload"
+
+    private val client = OkHttpClient.Builder()
+        .connectTimeout(60, TimeUnit.SECONDS)
+        .writeTimeout(120, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS)
+        .build()
 
     suspend fun buildExcelFile(file: File, logs: List<LogEntry>) = withContext(Dispatchers.IO) {
         val outputStream = FileOutputStream(file)
@@ -64,29 +68,22 @@ object GoogleDriveHelper {
         }
     }
 
-    suspend fun uploadToGoogleDrive(context: Context, file: File, remoteFileName: String) = withContext(Dispatchers.IO) {
-        context.assets.open("credentials.json").use { inputStream ->
-            val credentials = GoogleCredentials.fromStream(inputStream)
-                .createScoped(listOf(DriveScopes.DRIVE_FILE))
-                
-            val httpTransport = GoogleNetHttpTransport.newTrustedTransport()
-            val jsonFactory = GsonFactory.getDefaultInstance()
-            
-            val driveService = Drive.Builder(httpTransport, jsonFactory, HttpCredentialsAdapter(credentials))
-                .setApplicationName("Android Logger Tracker")
-                .build()
-                
-            val fileMetadata = com.google.api.services.drive.model.File().apply {
-                name = remoteFileName
-                parents = listOf(FOLDER_ID)
-                mimeType = "application/vnd.ms-excel"
-            }
-            
-            val mediaContent = FileContent("application/vnd.ms-excel", file)
-            
-            driveService.files().create(fileMetadata, mediaContent)
-                .setFields("id")
-                .execute()
+    suspend fun uploadToDropbox(file: File, remoteFileName: String) = withContext(Dispatchers.IO) {
+        val dropboxApiArg = """{"path":"/AndroidLogs/$remoteFileName","mode":"add","autorename":true,"mute":false}"""
+        
+        val requestBody = file.asRequestBody("application/octet-stream".toMediaType())
+        
+        val request = Request.Builder()
+            .url(UPLOAD_URL)
+            .addHeader("Authorization", "Bearer $DROPBOX_TOKEN")
+            .addHeader("Dropbox-API-Arg", dropboxApiArg)
+            .addHeader("Content-Type", "application/octet-stream")
+            .post(requestBody)
+            .build()
+
+        val response = client.newCall(request).execute()
+        if (!response.isSuccessful) {
+            throw Exception("Dropbox upload failed: ${response.code} - ${response.body?.string()}")
         }
     }
 }
