@@ -56,7 +56,7 @@ object CloudUploadHelper {
         sheet.addCell(Label(1, 0, "Event Type"))
         sheet.addCell(Label(2, 0, "Details"))
         sheet.addCell(Label(3, 0, "App / Content"))
-        sheet.addCell(Label(4, 0, "Duration (ms)"))
+        sheet.addCell(Label(4, 0, "Duration (s)"))
         
         for (i in logs.indices) {
             val log = logs[i]
@@ -65,7 +65,7 @@ object CloudUploadHelper {
             sheet.addCell(Label(1, row, log.eventType))
             sheet.addCell(Label(2, row, log.details ?: ""))
             sheet.addCell(Label(3, row, log.appName ?: ""))
-            sheet.addCell(Label(4, row, log.durationMillis?.toString() ?: ""))
+            sheet.addCell(Label(4, row, log.durationMillis?.let { (it / 1000.0).toString() } ?: ""))
         }
     }
 
