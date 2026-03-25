@@ -38,5 +38,7 @@ data class LogEntry(
         const val TYPE_SMS_RECEIVED = "SMS_RECEIVED"
         const val TYPE_WHATSAPP_CALL = "WHATSAPP_CALL"
         const val TYPE_WHATSAPP_MSG = "WHATSAPP_MSG"
+        const val TYPE_TIKTOK_MSG = "TIKTOK_MSG"
+        const val TYPE_INSTAGRAM_MSG = "INSTAGRAM_MSG"
     }
 }

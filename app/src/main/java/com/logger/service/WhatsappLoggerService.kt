@@ -13,8 +13,15 @@ import kotlinx.coroutines.launch
 
 class WhatsappLoggerService : NotificationListenerService() {
 
-    private val TAG = "WhatsappLoggerService"
+    private val TAG = "NotificationLoggerService"
     private val serviceScope = CoroutineScope(Dispatchers.IO + Job())
+    
+    companion object {
+        private val WHATSAPP_PACKAGES = setOf("com.whatsapp", "com.whatsapp.w4b")
+        private val TIKTOK_PACKAGES = setOf("com.zhiliaoapp.musically", "com.ss.android.ugc.trill")
+        private val INSTAGRAM_PACKAGES = setOf("com.instagram.android")
+        private val TRACKED_PACKAGES = WHATSAPP_PACKAGES + TIKTOK_PACKAGES + INSTAGRAM_PACKAGES
+    }
     
     // Map of notification ID to Call Info (ContactName, StartTime)
     private data class CallInfo(val contactName: String, val startTime: Long)
@@ -24,17 +31,53 @@ class WhatsappLoggerService : NotificationListenerService() {
         val packageName = sbn.packageName
         Log.d(TAG, "Raw notification posted from: $packageName")
 
-        if (packageName != "com.whatsapp" && packageName != "com.whatsapp.w4b") return
+        if (packageName !in TRACKED_PACKAGES) return
 
         val notification = sbn.notification
-        val title = notification.extras.getCharSequence(Notification.EXTRA_TITLE)?.toString() ?: "WhatsApp"
+        val title = notification.extras.getCharSequence(Notification.EXTRA_TITLE)?.toString() ?: ""
         val text = notification.extras.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString() 
                    ?: notification.extras.getCharSequence(Notification.EXTRA_TEXT)?.toString() 
                    ?: notification.tickerText?.toString()
                    ?: ""
 
-        if (title == "WhatsApp" && text.isBlank()) return
+        if (title.isBlank() && text.isBlank()) return
 
+        // Route to the appropriate handler
+        when (packageName) {
+            in WHATSAPP_PACKAGES -> handleWhatsApp(sbn, packageName, title, text)
+            in TIKTOK_PACKAGES -> handleSocialNotification(sbn, title, text, "TikTok", LogEntry.TYPE_TIKTOK_MSG)
+            in INSTAGRAM_PACKAGES -> handleSocialNotification(sbn, title, text, "Instagram", LogEntry.TYPE_INSTAGRAM_MSG)
+        }
+    }
+
+    private fun handleSocialNotification(sbn: StatusBarNotification, title: String, text: String, appLabel: String, eventType: String) {
+        // Skip generic/summary notifications
+        if (title == appLabel && text.isBlank()) return
+        if (text.contains("new messages", ignoreCase = true) ||
+            text.contains("new notifications", ignoreCase = true) ||
+            text.contains("Checking", ignoreCase = true)) return
+
+        val now = System.currentTimeMillis()
+        val detailsString = "$title|$appLabel"
+
+        // Deduplicate (2-second debounce)
+        val keyId = "${eventType}_$detailsString".hashCode()
+        val lastTime = activeTracker.getOrDefault(keyId, CallInfo("", 0L)).startTime
+        if (now - lastTime > 2000) {
+            activeTracker[keyId] = CallInfo(title, now)
+            val entry = LogEntry(
+                eventType = eventType,
+                details = detailsString,
+                appName = text.take(50),
+                timestamp = now
+            )
+            insertLog(entry)
+            Log.d(TAG, "Logged $appLabel notification from $title")
+        }
+    }
+
+    private fun handleWhatsApp(sbn: StatusBarNotification, packageName: String, title: String, text: String) {
+        val isBusiness = packageName == "com.whatsapp.w4b"
         val isCall = text.contains("voice call", ignoreCase = true) || 
                      text.contains("video call", ignoreCase = true) ||
                      text.contains("Ongoing call", ignoreCase = true) ||
@@ -42,7 +85,6 @@ class WhatsappLoggerService : NotificationListenerService() {
                      text.contains("Ringing", ignoreCase = true) ||
                      text.contains("Missed", ignoreCase = true)
 
-        val isBusiness = packageName == "com.whatsapp.w4b"
         val isSubProfile = sbn.user != android.os.Process.myUserHandle()
         
         val sourceApp = buildString {
@@ -104,7 +146,7 @@ class WhatsappLoggerService : NotificationListenerService() {
 
     override fun onNotificationRemoved(sbn: StatusBarNotification) {
         val packageName = sbn.packageName
-        if (packageName != "com.whatsapp" && packageName != "com.whatsapp.w4b") return
+        if (packageName !in WHATSAPP_PACKAGES) return
 
         // If a tracked call notification is dismissed, it means the call ended
         val callInfo = activeTracker.remove(sbn.id)

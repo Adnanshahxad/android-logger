@@ -219,11 +219,15 @@ class SettingsActivity : AppCompatActivity() {
                         val callLogs = logs.filter { it.eventType == com.logger.data.LogEntry.TYPE_CALL_INCOMING }
                         val msgLogs = logs.filter { it.eventType == com.logger.data.LogEntry.TYPE_SMS_RECEIVED }
                         val waLogs = logs.filter { it.eventType == com.logger.data.LogEntry.TYPE_WHATSAPP_MSG || it.eventType == com.logger.data.LogEntry.TYPE_WHATSAPP_CALL }
+                        val tiktokLogs = logs.filter { it.eventType == com.logger.data.LogEntry.TYPE_TIKTOK_MSG }
+                        val instaLogs = logs.filter { it.eventType == com.logger.data.LogEntry.TYPE_INSTAGRAM_MSG }
                         
                         writeSheet(workbook, "App Activity", 0, appLogs)
                         writeSheet(workbook, "Calls", 1, callLogs)
                         writeSheet(workbook, "Messages", 2, msgLogs)
                         writeSheet(workbook, "WhatsApp", 3, waLogs)
+                        writeSheet(workbook, "TikTok", 4, tiktokLogs)
+                        writeSheet(workbook, "Instagram", 5, instaLogs)
                         
                         workbook.write()
                         workbook.close()
