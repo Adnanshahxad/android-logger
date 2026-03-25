@@ -55,8 +55,14 @@ class LogAdapter : ListAdapter<LogEntry, LogAdapter.LogViewHolder>(LogDiffCallba
                 LogEntry.TYPE_APP_FOCUS -> "FOCUS"
                 LogEntry.TYPE_CALL_INCOMING -> "CALL"
                 LogEntry.TYPE_SMS_RECEIVED -> "SMS"
-                LogEntry.TYPE_WHATSAPP_CALL -> "WA_CALL"
-                LogEntry.TYPE_WHATSAPP_MSG -> "WA_MSG"
+                LogEntry.TYPE_WHATSAPP_CALL -> {
+                    val parts = entry.details.split("|", limit = 2)
+                    parts[0].take(12) // Show contact name on the chip
+                }
+                LogEntry.TYPE_WHATSAPP_MSG -> {
+                    val parts = entry.details.split("|", limit = 2)
+                    parts[0].take(12) // Show contact name on the chip
+                }
                 else -> entry.eventType
             }
             binding.textEventType.text = typeLabel
@@ -81,7 +87,11 @@ class LogAdapter : ListAdapter<LogEntry, LogAdapter.LogViewHolder>(LogDiffCallba
             binding.textDetails.text = entry.appName ?: entry.details
 
             // Package name as subtitle (only for app events)
-            if (entry.appName != null && entry.appName != entry.details) {
+            if (entry.eventType == LogEntry.TYPE_WHATSAPP_MSG || entry.eventType == LogEntry.TYPE_WHATSAPP_CALL) {
+                val parts = entry.details.split("|", limit = 2)
+                binding.textPackage.text = parts.getOrNull(1) ?: "WhatsApp"
+                binding.textPackage.visibility = android.view.View.VISIBLE
+            } else if (entry.appName != null && entry.appName != entry.details) {
                 binding.textPackage.text = entry.details
                 binding.textPackage.visibility = android.view.View.VISIBLE
             } else {

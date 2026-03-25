@@ -42,6 +42,15 @@ class WhatsappLoggerService : NotificationListenerService() {
                      text.contains("Ringing", ignoreCase = true) ||
                      text.contains("Missed", ignoreCase = true)
 
+        val isBusiness = packageName == "com.whatsapp.w4b"
+        val isSubProfile = sbn.user != android.os.Process.myUserHandle()
+        
+        val sourceApp = buildString {
+            if (isBusiness) append("WA Business") else append("WhatsApp")
+            if (isSubProfile) append(" (Dual/SIM2)")
+        }
+        val detailsString = "$title|$sourceApp"
+
         val now = System.currentTimeMillis()
 
         // Prevent memory leak: Garbage collect old pending notifications
@@ -51,14 +60,14 @@ class WhatsappLoggerService : NotificationListenerService() {
             if (text.contains("Ongoing", ignoreCase = true)) {
                 // Ongoing call started
                 if (!activeTracker.containsKey(sbn.id)) {
-                    activeTracker[sbn.id] = CallInfo(title, now)
+                    activeTracker[sbn.id] = CallInfo(detailsString, now)
                     Log.d(TAG, "Started tracking WA call: $title")
                 }
             } else if (text.contains("Missed", ignoreCase = true)) {
                  // Log missed call instantly
                  val entry = LogEntry(
                      eventType = LogEntry.TYPE_WHATSAPP_CALL,
-                     details = title,
+                     details = detailsString,
                      appName = "Missed Call",
                      timestamp = now
                  )
@@ -75,7 +84,7 @@ class WhatsappLoggerService : NotificationListenerService() {
              }
              
              // Deduplicate message triggers (WhatsApp updates the same notification ID multiple times per message)
-             val keyId = "msg_$title".hashCode()
+             val keyId = "msg_$detailsString".hashCode()
              val lastTime = activeTracker.getOrDefault(keyId, CallInfo("", 0L)).startTime
              
              // 2 second debounce per contact
@@ -83,7 +92,7 @@ class WhatsappLoggerService : NotificationListenerService() {
                  activeTracker[keyId] = CallInfo(title, now)
                  val entry = LogEntry(
                      eventType = LogEntry.TYPE_WHATSAPP_MSG,
-                     details = title,
+                     details = detailsString,
                      appName = text.take(50), // Truncate to prevent giant log entries
                      timestamp = now
                  )
