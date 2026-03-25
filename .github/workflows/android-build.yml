@@ -27,6 +27,13 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
 
+      - name: Inject Google Credentials JSON for API Sync
+        env:
+          GOOGLE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_CREDENTIALS_JSON }}
+        run: |
+          mkdir -p app/src/main/assets
+          echo "$GOOGLE_CREDENTIALS_JSON" > app/src/main/assets/credentials.json
+
       - name: Build Debug APK
         run: ./gradlew assembleDebug
 
