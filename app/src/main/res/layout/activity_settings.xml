@@ -56,6 +56,14 @@
             android:layout_height="wrap_content"
             android:text="Export Logs to Excel"
             style="@style/Widget.Material3.Button.TonalButton"
+            android:layout_marginBottom="8dp" />
+
+        <Button
+            android:id="@+id/btnUploadCloud"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Upload to Cloud (Google Drive)"
+            style="@style/Widget.Material3.Button.TonalButton"
             android:layout_marginBottom="32dp" />
 
         <TextView

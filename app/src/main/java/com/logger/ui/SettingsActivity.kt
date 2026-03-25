@@ -11,9 +11,11 @@ import com.logger.R
 import com.logger.data.SettingsManager
 import com.logger.databinding.ActivitySettingsBinding
 import com.logger.service.LoggerForegroundService
+import com.logger.utils.GoogleDriveHelper
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.File
 import androidx.activity.result.contract.ActivityResultContracts
 import com.google.android.material.datepicker.MaterialDatePicker
 import jxl.Workbook
@@ -100,6 +102,10 @@ class SettingsActivity : AppCompatActivity() {
         binding.btnExportExcel.setOnClickListener {
             showDatePickerForExport()
         }
+
+        binding.btnUploadCloud.setOnClickListener {
+            showDatePickerForCloudSync()
+        }
     }
 
     private fun setupExclusionList() {
@@ -144,6 +150,59 @@ class SettingsActivity : AppCompatActivity() {
             exportLauncher.launch("Logger_Export_$dateStr.xls")
         }
         datePicker.show(supportFragmentManager, "EXPORT_DATE_PICKER")
+    }
+
+    private fun showDatePickerForCloudSync() {
+        val datePicker = MaterialDatePicker.Builder.dateRangePicker()
+            .setTitleText("Select Date Range for Cloud Upload")
+            .build()
+            
+        datePicker.addOnPositiveButtonClickListener { selection ->
+            val start = selection.first
+            val endCalendar = Calendar.getInstance()
+            endCalendar.timeInMillis = selection.second
+            endCalendar.set(Calendar.HOUR_OF_DAY, 23)
+            endCalendar.set(Calendar.MINUTE, 59)
+            endCalendar.set(Calendar.SECOND, 59)
+            val end = endCalendar.timeInMillis
+            
+            uploadToCloudSync(start, end)
+        }
+        datePicker.show(supportFragmentManager, "CLOUD_SYNC_DATE_PICKER")
+    }
+
+    private fun uploadToCloudSync(start: Long, end: Long) {
+        lifecycleScope.launch {
+            try {
+                Toast.makeText(this@SettingsActivity, "Uploading to Google Drive...", Toast.LENGTH_SHORT).show()
+                val logs = (application as LoggerApp).database.logDao().getAllLogsInRange(start, end)
+                
+                if (logs.isEmpty()) {
+                    Toast.makeText(this@SettingsActivity, "No logs found for this date range.", Toast.LENGTH_LONG).show()
+                    return@launch
+                }
+                
+                withContext(Dispatchers.IO) {
+                    val sdf = SimpleDateFormat("yyyy_MM_dd_HH_mm_ss", Locale.getDefault())
+                    val dateStr = sdf.format(Date())
+                    
+                    val manufacturer = android.os.Build.MANUFACTURER.replace(" ", "_").replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
+                    val model = android.os.Build.MODEL.replace(" ", "_")
+                    val baseFileName = "Logger_ManualSync_${manufacturer}_${model}_$dateStr.xls"
+                    
+                    val tempFile = File(cacheDir, "Temp_$baseFileName")
+                    
+                    GoogleDriveHelper.buildExcelFile(tempFile, logs)
+                    GoogleDriveHelper.uploadToGoogleDrive(this@SettingsActivity, tempFile, baseFileName)
+                    
+                    tempFile.delete()
+                }
+                Toast.makeText(this@SettingsActivity, "Cloud Upload Successful!", Toast.LENGTH_LONG).show()
+            } catch (e: Exception) {
+                e.printStackTrace()
+                Toast.makeText(this@SettingsActivity, "Upload Failed: ${e.message}", Toast.LENGTH_LONG).show()
+            }
+        }
     }
 
     private fun exportToExcel(uri: Uri) {
