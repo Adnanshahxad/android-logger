@@ -24,7 +24,7 @@ class WhatsappLoggerService : NotificationListenerService() {
     }
     
     // Map of notification ID to Call Info (ContactName, StartTime)
-    private data class CallInfo(val contactName: String, val startTime: Long)
+    private data class CallInfo(val contactName: String, val startTime: Long, val lastText: String = "")
     private val activeTracker = mutableMapOf<Int, CallInfo>()
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
@@ -59,15 +59,19 @@ class WhatsappLoggerService : NotificationListenerService() {
         val now = System.currentTimeMillis()
         val detailsString = "$title|$appLabel"
 
-        // Deduplicate (2-second debounce)
-        val keyId = "${eventType}_$detailsString".hashCode()
+        // Prevent memory leak: Garbage collect old pending notifications
+        activeTracker.entries.removeIf { now - it.value.startTime > 12 * 60 * 60 * 1000L }
+
+        // Deduplicate (5-minute debounce per contact+message)
+        val msgText = text.take(50)
+        val keyId = "${eventType}_${detailsString}_${msgText}".hashCode()
         val lastTime = activeTracker.getOrDefault(keyId, CallInfo("", 0L)).startTime
-        if (now - lastTime > 2000) {
-            activeTracker[keyId] = CallInfo(title, now)
+        if (now - lastTime > 300_000) {
+            activeTracker[keyId] = CallInfo(title, now, msgText)
             val entry = LogEntry(
                 eventType = eventType,
                 details = detailsString,
-                appName = text.take(50),
+                appName = msgText,
                 timestamp = now
             )
             insertLog(entry)
@@ -124,17 +128,18 @@ class WhatsappLoggerService : NotificationListenerService() {
                  return // Generic summary notification
              }
              
-             // Deduplicate message triggers (WhatsApp updates the same notification ID multiple times per message)
-             val keyId = "msg_$detailsString".hashCode()
+             // Deduplicate message triggers (WhatsApp re-posts notifications minutes apart)
+             val msgText = text.take(50)
+             val keyId = "msg_${detailsString}_${msgText}".hashCode()
              val lastTime = activeTracker.getOrDefault(keyId, CallInfo("", 0L)).startTime
-             
-             // 2 second debounce per contact
-             if (now - lastTime > 2000) {
-                 activeTracker[keyId] = CallInfo(title, now)
+
+             // 5 minute debounce per contact+message combination
+             if (now - lastTime > 300_000) {
+                 activeTracker[keyId] = CallInfo(title, now, msgText)
                  val entry = LogEntry(
                      eventType = LogEntry.TYPE_WHATSAPP_MSG,
                      details = detailsString,
-                     appName = text.take(50), // Truncate to prevent giant log entries
+                     appName = msgText,
                      timestamp = now
                  )
                  insertLog(entry)
