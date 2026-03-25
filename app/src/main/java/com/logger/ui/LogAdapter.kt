@@ -57,11 +57,11 @@ class LogAdapter : ListAdapter<LogEntry, LogAdapter.LogViewHolder>(LogDiffCallba
                 LogEntry.TYPE_SMS_RECEIVED -> "SMS"
                 LogEntry.TYPE_WHATSAPP_CALL -> {
                     val parts = entry.details.split("|", limit = 2)
-                    parts[0].take(12) // Show contact name on the chip
+                    parts[0] // Show full contact name
                 }
                 LogEntry.TYPE_WHATSAPP_MSG -> {
                     val parts = entry.details.split("|", limit = 2)
-                    parts[0].take(12) // Show contact name on the chip
+                    parts[0] // Show full contact name
                 }
                 else -> entry.eventType
             }
