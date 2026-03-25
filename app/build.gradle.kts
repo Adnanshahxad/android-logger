@@ -38,6 +38,12 @@ android {
     buildFeatures {
         viewBinding = true
     }
+    
+    packaging {
+        resources {
+            excludes += setOf("META-INF/DEPENDENCIES", "META-INF/INDEX.LIST")
+        }
+    }
 }
 
 dependencies {
@@ -52,6 +58,9 @@ dependencies {
     implementation("com.google.android.material:material:1.11.0")
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
 
+    // WorkManager
+    implementation("androidx.work:work-runtime-ktx:2.9.0")
+
     // Room Database
     implementation("androidx.room:room-runtime:2.6.1")
     implementation("androidx.room:room-ktx:2.6.1")
@@ -63,6 +72,11 @@ dependencies {
 
     // Excel Export
     implementation("net.sourceforge.jexcelapi:jxl:2.6.12")
+    
+    // Google Drive Sync
+    implementation("com.google.api-client:google-api-client-android:1.33.0")
+    implementation("com.google.apis:google-api-services-drive:v3-rev20220815-2.0.0")
+    implementation("com.google.auth:google-auth-library-oauth2-http:1.16.0")
 
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
