@@ -239,7 +239,7 @@ class SettingsActivity : AppCompatActivity() {
     
     private fun writeSheet(workbook: WritableWorkbook, name: String, index: Int, logs: List<com.logger.data.LogEntry>) {
         val sheet = workbook.createSheet(name, index)
-        val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+        val sdf = SimpleDateFormat("yyyy-MM-dd hh:mm:ss a", Locale.getDefault())
         
         sheet.addCell(Label(0, 0, "Time"))
         sheet.addCell(Label(1, 0, "Event Type"))
