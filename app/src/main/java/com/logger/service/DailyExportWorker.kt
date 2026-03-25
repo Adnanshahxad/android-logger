@@ -64,7 +64,11 @@ class DailyExportWorker(
             Result.success()
         } catch (e: Exception) {
             Log.e(TAG, "Failed daily sync: ${e.message}", e)
-            Result.retry() // Reschedules automatically if the phone drops internet
+            if (runAttemptCount >= 3) {
+                Log.e(TAG, "Max retries (3) reached. Halting until tomorrow at 6:00 AM.")
+                return@withContext Result.failure()
+            }
+            Result.retry() // Reschedules automatically following exponential backoff
         }
     }
 

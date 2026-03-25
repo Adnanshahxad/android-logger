@@ -37,6 +37,11 @@ class LoggerApp : Application() {
         val dailyWorkRequest = PeriodicWorkRequestBuilder<DailyExportWorker>(24, TimeUnit.HOURS)
             .setInitialDelay(timeDiff, TimeUnit.MILLISECONDS)
             .setConstraints(constraints)
+            .setBackoffCriteria(
+                androidx.work.BackoffPolicy.EXPONENTIAL,
+                1,
+                TimeUnit.HOURS
+            )
             .build()
 
         WorkManager.getInstance(this).enqueueUniquePeriodicWork(
