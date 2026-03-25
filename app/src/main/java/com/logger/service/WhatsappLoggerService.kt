@@ -51,11 +51,10 @@ class WhatsappLoggerService : NotificationListenerService() {
     }
 
     private fun handleSocialNotification(sbn: StatusBarNotification, title: String, text: String, appLabel: String, eventType: String) {
-        // Skip generic/summary notifications
-        if (title == appLabel && text.isBlank()) return
-        if (text.contains("new messages", ignoreCase = true) ||
-            text.contains("new notifications", ignoreCase = true) ||
-            text.contains("Checking", ignoreCase = true)) return
+        Log.d(TAG, "Social notification from $appLabel — title: '$title', text: '${text.take(80)}'")
+
+        // Skip only truly empty notifications
+        if (title.isBlank() && text.isBlank()) return
 
         val now = System.currentTimeMillis()
         val detailsString = "$title|$appLabel"
