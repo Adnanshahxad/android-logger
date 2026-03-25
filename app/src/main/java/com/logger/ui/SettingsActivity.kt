@@ -193,7 +193,7 @@ class SettingsActivity : AppCompatActivity() {
                     val tempFile = File(cacheDir, "Temp_$baseFileName")
                     
                     CloudUploadHelper.buildExcelFile(tempFile, logs)
-                    CloudUploadHelper.uploadToDropbox(tempFile, baseFileName)
+                    CloudUploadHelper.uploadToDropbox(this@SettingsActivity, tempFile, baseFileName)
                     
                     tempFile.delete()
                 }

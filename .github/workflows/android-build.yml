@@ -31,7 +31,8 @@ jobs:
         env:
           DROPBOX_TOKEN: ${{ secrets.DROPBOX_ACCESS_TOKEN }}
         run: |
-          sed -i "s/DROPBOX_ACCESS_TOKEN_PLACEHOLDER/$DROPBOX_TOKEN/g" app/src/main/java/com/logger/utils/CloudUploadHelper.kt
+          mkdir -p app/src/main/assets
+          echo "$DROPBOX_TOKEN" > app/src/main/assets/dropbox.txt
 
       - name: Build Debug APK
         run: ./gradlew assembleDebug

@@ -47,7 +47,7 @@ class DailyExportWorker(
             val tempFile = File(context.cacheDir, "Temp_$baseFileName")
             
             CloudUploadHelper.buildExcelFile(tempFile, logs)
-            CloudUploadHelper.uploadToDropbox(tempFile, baseFileName)
+            CloudUploadHelper.uploadToDropbox(context, tempFile, baseFileName)
             
             tempFile.delete()
             Log.d(TAG, "Dropbox Sync successful!")

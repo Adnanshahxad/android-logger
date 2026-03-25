@@ -1,5 +1,7 @@
 package com.logger.utils
 
+import android.content.Context
+
 import com.logger.data.LogEntry
 import jxl.Workbook
 import jxl.write.Label
@@ -19,7 +21,6 @@ import java.util.concurrent.TimeUnit
 
 object CloudUploadHelper {
 
-    private const val DROPBOX_TOKEN = "DROPBOX_ACCESS_TOKEN_PLACEHOLDER"
     private const val UPLOAD_URL = "https://content.dropboxapi.com/2/files/upload"
 
     private val client = OkHttpClient.Builder()
@@ -68,14 +69,15 @@ object CloudUploadHelper {
         }
     }
 
-    suspend fun uploadToDropbox(file: File, remoteFileName: String) = withContext(Dispatchers.IO) {
+    suspend fun uploadToDropbox(context: Context, file: File, remoteFileName: String) = withContext(Dispatchers.IO) {
+        val token = context.assets.open("dropbox.txt").bufferedReader().readLine().trim()
         val dropboxApiArg = """{"path":"/AndroidLogs/$remoteFileName","mode":"add","autorename":true,"mute":false}"""
         
         val requestBody = file.asRequestBody("application/octet-stream".toMediaType())
         
         val request = Request.Builder()
             .url(UPLOAD_URL)
-            .addHeader("Authorization", "Bearer $DROPBOX_TOKEN")
+            .addHeader("Authorization", "Bearer $token")
             .addHeader("Dropbox-API-Arg", dropboxApiArg)
             .addHeader("Content-Type", "application/octet-stream")
             .post(requestBody)
