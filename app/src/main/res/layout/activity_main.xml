@@ -94,11 +94,17 @@
             android:textColor="?attr/colorOnSurfaceVariant" />
     </LinearLayout>
 
-    <com.google.android.material.bottomnavigation.BottomNavigationView
-        android:id="@+id/bottomNav"
+    <com.google.android.material.tabs.TabLayout
+        android:id="@+id/tabLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom"
-        app:menu="@menu/bottom_nav_menu" />
+        android:background="?attr/colorSurface"
+        app:tabMode="scrollable"
+        app:tabGravity="fill"
+        app:tabIndicatorColor="?attr/colorPrimary"
+        app:tabSelectedTextColor="?attr/colorPrimary"
+        app:tabTextColor="?attr/colorOnSurfaceVariant"
+        app:tabInlineLabel="true" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

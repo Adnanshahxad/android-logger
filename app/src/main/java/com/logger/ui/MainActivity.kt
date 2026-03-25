@@ -193,47 +193,31 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupBottomNavigation() {
-        binding.bottomNav.setOnItemSelectedListener { item ->
-            when (item.itemId) {
-                R.id.nav_app_activity -> {
-                    activeTab = 0
-                    binding.filterContainer.visibility = View.VISIBLE
-                    observeLogs()
-                    true
-                }
-                R.id.nav_call_history -> {
-                    activeTab = 1
-                    binding.filterContainer.visibility = View.GONE
-                    observeCallLogs()
-                    true
-                }
-                R.id.nav_messages -> {
-                    activeTab = 2
-                    binding.filterContainer.visibility = View.GONE
-                    observeSmsLogs()
-                    true
-                }
-                R.id.nav_whatsapp -> {
-                    activeTab = 3
-                    binding.filterContainer.visibility = View.GONE
-                    observeWhatsappLogs()
-                    true
-                }
-                R.id.nav_tiktok -> {
-                    activeTab = 4
-                    binding.filterContainer.visibility = View.GONE
-                    observeTiktokLogs()
-                    true
-                }
-                R.id.nav_instagram -> {
-                    activeTab = 5
-                    binding.filterContainer.visibility = View.GONE
-                    observeInstagramLogs()
-                    true
-                }
-                else -> false
-            }
+        val tabTitles = listOf("App Activity", "Calls", "Messages", "WhatsApp", "TikTok", "Instagram")
+        val tabIcons = listOf(
+            R.drawable.ic_monitor,
+            R.drawable.ic_phone,
+            R.drawable.ic_sms,
+            android.R.drawable.sym_action_chat,
+            android.R.drawable.ic_menu_slideshow,
+            android.R.drawable.ic_menu_camera
+        )
+
+        for (i in tabTitles.indices) {
+            val tab = binding.tabLayout.newTab()
+                .setText(tabTitles[i])
+                .setIcon(tabIcons[i])
+            binding.tabLayout.addTab(tab)
         }
+
+        binding.tabLayout.addOnTabSelectedListener(object : com.google.android.material.tabs.TabLayout.OnTabSelectedListener {
+            override fun onTabSelected(tab: com.google.android.material.tabs.TabLayout.Tab) {
+                activeTab = tab.position
+                refreshCurrentTab()
+            }
+            override fun onTabUnselected(tab: com.google.android.material.tabs.TabLayout.Tab) {}
+            override fun onTabReselected(tab: com.google.android.material.tabs.TabLayout.Tab) {}
+        })
     }
 
     private fun showDatePickerMenu() {
