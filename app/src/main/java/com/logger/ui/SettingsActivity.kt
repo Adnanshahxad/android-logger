@@ -12,12 +12,33 @@ import com.logger.data.SettingsManager
 import com.logger.databinding.ActivitySettingsBinding
 import com.logger.service.LoggerForegroundService
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import androidx.activity.result.contract.ActivityResultContracts
+import com.google.android.material.datepicker.MaterialDatePicker
+import jxl.Workbook
+import jxl.write.Label
+import jxl.write.WritableWorkbook
+import java.util.Calendar
+import java.util.Date
+import java.text.SimpleDateFormat
+import java.util.Locale
+import android.net.Uri
 
 class SettingsActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivitySettingsBinding
     private lateinit var settingsManager: SettingsManager
     private lateinit var adapter: ExcludedPackageAdapter
+
+    private var exportStart: Long = 0L
+    private var exportEnd: Long = 0L
+
+    private val exportLauncher = registerForActivityResult(ActivityResultContracts.CreateDocument("application/vnd.ms-excel")) { uri ->
+        if (uri != null) {
+            exportToExcel(uri)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -75,6 +96,10 @@ class SettingsActivity : AppCompatActivity() {
                 .setNegativeButton("Cancel", null)
                 .show()
         }
+
+        binding.btnExportExcel.setOnClickListener {
+            showDatePickerForExport()
+        }
     }
 
     private fun setupExclusionList() {
@@ -98,5 +123,79 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun refreshList() {
         adapter.updateList(settingsManager.getExcludedPackages().toList())
+    }
+
+    private fun showDatePickerForExport() {
+        val datePicker = MaterialDatePicker.Builder.dateRangePicker()
+            .setTitleText("Select Date Range to Export")
+            .build()
+            
+        datePicker.addOnPositiveButtonClickListener { selection ->
+            exportStart = selection.first
+            val endCalendar = Calendar.getInstance()
+            endCalendar.timeInMillis = selection.second
+            endCalendar.set(Calendar.HOUR_OF_DAY, 23)
+            endCalendar.set(Calendar.MINUTE, 59)
+            endCalendar.set(Calendar.SECOND, 59)
+            exportEnd = endCalendar.timeInMillis
+            
+            val sdf = SimpleDateFormat("yyyyMMdd", Locale.getDefault())
+            val dateStr = sdf.format(Date())
+            exportLauncher.launch("Logger_Export_$dateStr.xls")
+        }
+        datePicker.show(supportFragmentManager, "EXPORT_DATE_PICKER")
+    }
+
+    private fun exportToExcel(uri: Uri) {
+        lifecycleScope.launch {
+            try {
+                Toast.makeText(this@SettingsActivity, "Exporting to Excel...", Toast.LENGTH_SHORT).show()
+                val logs = (application as LoggerApp).database.logDao().getAllLogsInRange(exportStart, exportEnd)
+                
+                withContext(Dispatchers.IO) {
+                    contentResolver.openOutputStream(uri)?.use { outputStream ->
+                        val workbook = Workbook.createWorkbook(outputStream)
+                        
+                        val appLogs = logs.filter { it.eventType == com.logger.data.LogEntry.TYPE_APP_OPENED || it.eventType == com.logger.data.LogEntry.TYPE_APP_CLOSED || it.eventType == com.logger.data.LogEntry.TYPE_APP_FOCUS || it.eventType == com.logger.data.LogEntry.TYPE_AUTH_UNLOCK }
+                        val callLogs = logs.filter { it.eventType == com.logger.data.LogEntry.TYPE_CALL_INCOMING }
+                        val msgLogs = logs.filter { it.eventType == com.logger.data.LogEntry.TYPE_SMS_RECEIVED }
+                        val waLogs = logs.filter { it.eventType == com.logger.data.LogEntry.TYPE_WHATSAPP_MSG || it.eventType == com.logger.data.LogEntry.TYPE_WHATSAPP_CALL }
+                        
+                        writeSheet(workbook, "App Activity", 0, appLogs)
+                        writeSheet(workbook, "Calls", 1, callLogs)
+                        writeSheet(workbook, "Messages", 2, msgLogs)
+                        writeSheet(workbook, "WhatsApp", 3, waLogs)
+                        
+                        workbook.write()
+                        workbook.close()
+                    }
+                }
+                Toast.makeText(this@SettingsActivity, "Export Successful!", Toast.LENGTH_LONG).show()
+            } catch (e: Exception) {
+                e.printStackTrace()
+                Toast.makeText(this@SettingsActivity, "Export Failed: ${e.message}", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+    
+    private fun writeSheet(workbook: WritableWorkbook, name: String, index: Int, logs: List<com.logger.data.LogEntry>) {
+        val sheet = workbook.createSheet(name, index)
+        val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+        
+        sheet.addCell(Label(0, 0, "Time"))
+        sheet.addCell(Label(1, 0, "Event Type"))
+        sheet.addCell(Label(2, 0, "Details"))
+        sheet.addCell(Label(3, 0, "App / Content"))
+        sheet.addCell(Label(4, 0, "Duration (ms)"))
+        
+        for (i in logs.indices) {
+            val log = logs[i]
+            val row = i + 1
+            sheet.addCell(Label(0, row, sdf.format(Date(log.timestamp))))
+            sheet.addCell(Label(1, row, log.eventType))
+            sheet.addCell(Label(2, row, log.details ?: ""))
+            sheet.addCell(Label(3, row, log.appName ?: ""))
+            sheet.addCell(Label(4, row, log.durationMillis?.toString() ?: ""))
+        }
     }
 }

@@ -48,6 +48,14 @@
             android:text="Delete All Logs"
             style="@style/Widget.Material3.Button.OutlinedButton"
             android:textColor="?attr/colorError"
+            android:layout_marginBottom="8dp" />
+
+        <Button
+            android:id="@+id/btnExportExcel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Export Logs to Excel"
+            style="@style/Widget.Material3.Button.TonalButton"
             android:layout_marginBottom="32dp" />
 
         <TextView

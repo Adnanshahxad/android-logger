@@ -61,6 +61,9 @@ dependencies {
     implementation("net.zetetic:android-database-sqlcipher:4.5.4")
     implementation("androidx.sqlite:sqlite-ktx:2.3.1")
 
+    // Excel Export
+    implementation("net.sourceforge.jexcelapi:jxl:2.6.12")
+
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 
