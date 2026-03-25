@@ -15,7 +15,7 @@ interface LogDao {
         SELECT * FROM log_entries 
         WHERE (:type IS NULL OR eventType = :type) 
           AND (:pkg IS NULL OR details = :pkg) 
-          AND eventType NOT IN ('CALL_INCOMING', 'SMS_RECEIVED')
+          AND eventType NOT IN ('CALL_INCOMING', 'SMS_RECEIVED', 'WHATSAPP_CALL', 'WHATSAPP_MSG', 'TIKTOK_MSG', 'INSTAGRAM_MSG')
           AND timestamp BETWEEN :startTimestamp AND :endTimestamp 
         ORDER BY timestamp DESC
     """)
