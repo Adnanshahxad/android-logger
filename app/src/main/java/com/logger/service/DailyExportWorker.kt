@@ -49,7 +49,7 @@ class DailyExportWorker(
                 return@withContext Result.success()
             }
             
-            val sdf = SimpleDateFormat("yyyy_MM_dd", Locale.getDefault())
+            val sdf = SimpleDateFormat("yyyy_MM_dd_HH_mm_ss", Locale.getDefault())
             val dateStr = sdf.format(Date())
             
             val tempFile = File(context.cacheDir, "Daily_Logs_$dateStr.xls")
