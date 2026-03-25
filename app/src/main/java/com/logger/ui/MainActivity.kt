@@ -133,6 +133,18 @@ class MainActivity : AppCompatActivity() {
                 binding.filterContainer.visibility = View.GONE
                 observeSmsLogs()
             }
+            3 -> {
+                binding.filterContainer.visibility = View.GONE
+                observeWhatsappLogs()
+            }
+            4 -> {
+                binding.filterContainer.visibility = View.GONE
+                observeTiktokLogs()
+            }
+            5 -> {
+                binding.filterContainer.visibility = View.GONE
+                observeInstagramLogs()
+            }
         }
     }
 
@@ -207,6 +219,18 @@ class MainActivity : AppCompatActivity() {
                     observeWhatsappLogs()
                     true
                 }
+                R.id.nav_tiktok -> {
+                    activeTab = 4
+                    binding.filterContainer.visibility = View.GONE
+                    observeTiktokLogs()
+                    true
+                }
+                R.id.nav_instagram -> {
+                    activeTab = 5
+                    binding.filterContainer.visibility = View.GONE
+                    observeInstagramLogs()
+                    true
+                }
                 else -> false
             }
         }
@@ -237,6 +261,10 @@ class MainActivity : AppCompatActivity() {
                 observeSmsLogs()
             } else if (activeTab == 3) {
                 observeWhatsappLogs()
+            } else if (activeTab == 4) {
+                observeTiktokLogs()
+            } else if (activeTab == 5) {
+                observeInstagramLogs()
             } else {
                 observeLogs()
             }
@@ -307,6 +335,36 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun observeTiktokLogs() {
+        observeJob?.cancel()
+        val dao = (application as LoggerApp).database.logDao()
+        observeJob = lifecycleScope.launch {
+            dao.getTiktokLogs(
+                startTimestamp = currentStartTimestamp,
+                endTimestamp = currentEndTimestamp
+            ).collectLatest { logs ->
+                logAdapter.submitList(logs)
+                binding.emptyView.visibility = if (logs.isEmpty()) View.VISIBLE else View.GONE
+                binding.recyclerViewLogs.visibility = if (logs.isEmpty()) View.GONE else View.VISIBLE
+            }
+        }
+    }
+
+    private fun observeInstagramLogs() {
+        observeJob?.cancel()
+        val dao = (application as LoggerApp).database.logDao()
+        observeJob = lifecycleScope.launch {
+            dao.getInstagramLogs(
+                startTimestamp = currentStartTimestamp,
+                endTimestamp = currentEndTimestamp
+            ).collectLatest { logs ->
+                logAdapter.submitList(logs)
+                binding.emptyView.visibility = if (logs.isEmpty()) View.VISIBLE else View.GONE
+                binding.recyclerViewLogs.visibility = if (logs.isEmpty()) View.GONE else View.VISIBLE
+            }
+        }
+    }
+
     // ─── Permissions & Initial Service Start ─────────────────────────
 
     private fun requestPhonePermissions() {
@@ -360,7 +418,7 @@ class MainActivity : AppCompatActivity() {
             MaterialAlertDialogBuilder(this)
                 .setTitle("Notification Access Required")
                 .setMessage(
-                    "This app needs \"Notification Access\" to track WhatsApp calls and messages.\n\n" +
+                    "This app needs \"Notification Access\" to track WhatsApp, TikTok, and Instagram notifications.\n\n" +
                     "Please find the app in the list and allow notification access."
                 )
                 .setPositiveButton("Open Settings") { _, _ ->

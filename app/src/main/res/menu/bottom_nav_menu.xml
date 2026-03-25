@@ -16,4 +16,12 @@
         android:id="@+id/nav_whatsapp"
         android:icon="@android:drawable/sym_action_chat"
         android:title="WhatsApp" />
+    <item
+        android:id="@+id/nav_tiktok"
+        android:icon="@android:drawable/ic_menu_slideshow"
+        android:title="TikTok" />
+    <item
+        android:id="@+id/nav_instagram"
+        android:icon="@android:drawable/ic_menu_camera"
+        android:title="Instagram" />
 </menu>
