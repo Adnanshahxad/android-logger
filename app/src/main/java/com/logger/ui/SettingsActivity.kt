@@ -85,6 +85,13 @@ class SettingsActivity : AppCompatActivity() {
             }
         }
 
+        // Decoy lock screen toggle
+        binding.switchDecoy.isChecked = settingsManager.isDecoyEnabled
+        binding.switchDecoy.setOnCheckedChangeListener { _, isChecked ->
+            settingsManager.isDecoyEnabled = isChecked
+            Toast.makeText(this, if (isChecked) "Lock screen enabled" else "Lock screen disabled", Toast.LENGTH_SHORT).show()
+        }
+
         // Polling controls
         binding.switchPolling.isChecked = settingsManager.isPollingEnabled
         binding.inputPollInterval.setText(settingsManager.pollIntervalSeconds.toString())

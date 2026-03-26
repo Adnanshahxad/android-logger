@@ -39,6 +39,14 @@
             android:layout_height="wrap_content"
             android:text="Enable Background Logger"
             android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
+            android:layout_marginBottom="8dp" />
+
+        <com.google.android.material.materialswitch.MaterialSwitch
+            android:id="@+id/switchDecoy"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Enable Lock Screen"
+            android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
             android:layout_marginBottom="16dp" />
 
         <TextView

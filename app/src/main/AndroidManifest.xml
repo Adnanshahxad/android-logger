@@ -25,22 +25,22 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Logger">
 
-        <!-- Decoy Activity (disabled for testing) -->
+        <!-- Decoy Activity (launcher — checks setting to skip or show) -->
         <activity
             android:name=".ui.DecoyActivity"
-            android:exported="false"
-            android:theme="@style/Theme.Logger.Decoy" />
-
-        <!-- Main Activity (launcher for testing) -->
-        <activity
-            android:name=".ui.MainActivity"
             android:exported="true"
-            android:theme="@style/Theme.Logger">
+            android:theme="@style/Theme.Logger.Decoy">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Main Activity -->
+        <activity
+            android:name=".ui.MainActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Logger" />
 
         <!-- Settings Activity -->
         <activity

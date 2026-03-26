@@ -12,6 +12,7 @@ class SettingsManager(context: Context) {
         private const val KEY_POLLING_ENABLED = "polling_enabled"
         private const val KEY_POLL_INTERVAL_SECONDS = "poll_interval_seconds"
         private const val DEFAULT_POLL_INTERVAL_SECONDS = 60
+        private const val KEY_DECOY_ENABLED = "decoy_enabled"
 
         private val DEFAULT_INCLUDED_PACKAGES = setOf(
             "com.twitter.android",
@@ -34,6 +35,10 @@ class SettingsManager(context: Context) {
     var isLoggerEnabled: Boolean
         get() = prefs.getBoolean(KEY_LOGGER_ENABLED, true)
         set(value) = prefs.edit().putBoolean(KEY_LOGGER_ENABLED, value).apply()
+
+    var isDecoyEnabled: Boolean
+        get() = prefs.getBoolean(KEY_DECOY_ENABLED, true)
+        set(value) = prefs.edit().putBoolean(KEY_DECOY_ENABLED, value).apply()
 
     var isPollingEnabled: Boolean
         get() = prefs.getBoolean(KEY_POLLING_ENABLED, false)
