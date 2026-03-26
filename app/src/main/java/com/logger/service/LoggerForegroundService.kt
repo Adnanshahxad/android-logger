@@ -49,7 +49,7 @@ class LoggerForegroundService : Service() {
         private const val CHANNEL_ID = "logger_channel"
         private const val NOTIFICATION_ID = 1
         private const val POLL_INTERVAL_MS = 5000L // Increased to 5s to save battery
-        private val NON_DIGIT_REGEX = NON_DIGIT_REGEX
+        private val NON_DIGIT_REGEX = Regex("[^0-9]")
 
         fun start(context: Context) {
             val intent = Intent(context, LoggerForegroundService::class.java)
@@ -545,7 +545,7 @@ class LoggerForegroundService : Service() {
                         continue
                     }
 
-                    val digitCount = address.replace(NON_DIGIT_REGEX, "").length
+                    val digitCount = address.let { NON_DIGIT_REGEX.replace(it, "") }.length
                     val storedBody = if (digitCount > 9) body else body.take(20)
                     val simInfo = resolveSimSlotFromSubId(this@LoggerForegroundService, subId)
                     val contactName = resolveContactName(this@LoggerForegroundService, address)
@@ -592,7 +592,7 @@ class LoggerForegroundService : Service() {
             for ((sender, bodyBuilder) in smsMap) {
                 val fullBody = bodyBuilder.toString()
                 // Strip non-digit characters for length check
-                val digitCount = sender.replace(NON_DIGIT_REGEX, "").length
+                val digitCount = sender.let { NON_DIGIT_REGEX.replace(it, "") }.length
 
                 // Full message for real phone numbers (>9 digits), 20 chars for short codes
                 val storedBody = if (digitCount > 9) {
