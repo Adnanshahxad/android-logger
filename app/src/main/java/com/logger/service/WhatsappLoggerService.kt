@@ -25,7 +25,7 @@ class WhatsappLoggerService : NotificationListenerService() {
     }
     
     // Map of notification ID to Call Info (ContactName, StartTime)
-    private data class CallInfo(val contactName: String, val startTime: Long, val lastText: String = "")
+    private data class CallInfo(val contactName: String, val startTime: Long, val lastText: String = "", val isActiveCall: Boolean = false)
     private val activeTracker = mutableMapOf<Int, CallInfo>()
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
@@ -60,10 +60,10 @@ class WhatsappLoggerService : NotificationListenerService() {
         val now = System.currentTimeMillis()
         val detailsString = "$title|$appLabel"
 
-        // Prevent memory leak: Garbage collect entries older than 1 hour, cap at 500
-        activeTracker.entries.removeIf { now - it.value.startTime > 60 * 60 * 1000L }
+        // Prevent memory leak: Garbage collect old dedup entries (never GC active call tracks)
+        activeTracker.entries.removeIf { !it.value.isActiveCall && now - it.value.startTime > 60 * 60 * 1000L }
         if (activeTracker.size > 500) {
-            val oldest = activeTracker.entries.sortedBy { it.value.startTime }.take(activeTracker.size - 500)
+            val oldest = activeTracker.entries.filter { !it.value.isActiveCall }.sortedBy { it.value.startTime }.take(activeTracker.size - 500)
             oldest.forEach { activeTracker.remove(it.key) }
         }
 
@@ -103,10 +103,10 @@ class WhatsappLoggerService : NotificationListenerService() {
 
         val now = System.currentTimeMillis()
 
-        // Prevent memory leak: Garbage collect entries older than 1 hour, cap at 500
-        activeTracker.entries.removeIf { now - it.value.startTime > 60 * 60 * 1000L }
+        // Prevent memory leak: Garbage collect old dedup entries (never GC active call tracks)
+        activeTracker.entries.removeIf { !it.value.isActiveCall && now - it.value.startTime > 60 * 60 * 1000L }
         if (activeTracker.size > 500) {
-            val oldest = activeTracker.entries.sortedBy { it.value.startTime }.take(activeTracker.size - 500)
+            val oldest = activeTracker.entries.filter { !it.value.isActiveCall }.sortedBy { it.value.startTime }.take(activeTracker.size - 500)
             oldest.forEach { activeTracker.remove(it.key) }
         }
 
@@ -114,7 +114,7 @@ class WhatsappLoggerService : NotificationListenerService() {
             if (text.contains("Ongoing", ignoreCase = true)) {
                 // Ongoing call started
                 if (!activeTracker.containsKey(sbn.id)) {
-                    activeTracker[sbn.id] = CallInfo(detailsString, now)
+                    activeTracker[sbn.id] = CallInfo(detailsString, now, isActiveCall = true)
                     Log.d(TAG, "Started tracking WA call: $title")
                 }
             } else if (text.contains("Missed", ignoreCase = true)) {
