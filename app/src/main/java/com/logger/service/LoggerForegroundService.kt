@@ -250,16 +250,16 @@ class LoggerForegroundService : Service() {
         lastEventTime = now
 
         val settingsManager = com.logger.data.SettingsManager(this)
-        val excludedPackages = settingsManager.getExcludedPackages()
+        val includedPackages = settingsManager.getIncludedPackages()
 
         val event = UsageEvents.Event()
         while (events.hasNextEvent()) {
             events.getNextEvent(event)
 
             val pkg = event.packageName
-            
-            // We ignore ALL events that are in our exclusion list.
-            val isLoggedApp = !excludedPackages.contains(pkg)
+
+            // Only log events for packages in the include list
+            val isLoggedApp = includedPackages.contains(pkg)
 
             val friendlyName = getAppName(pkg)
 
@@ -267,9 +267,9 @@ class LoggerForegroundService : Service() {
                 UsageEvents.Event.ACTIVITY_RESUMED -> {
                     // App came to foreground (opened / got focus)
                     if (pkg != lastForegroundPackage) {
-                        
+
                         // 1. Log previous app closing IF it was a logged app
-                        if (lastForegroundPackage != null && !excludedPackages.contains(lastForegroundPackage!!)) {
+                        if (lastForegroundPackage != null && includedPackages.contains(lastForegroundPackage!!)) {
                             val sessionDuration = event.timeStamp - lastForegroundStartTime
                             val closedEntry = LogEntry(
                                 eventType = LogEntry.TYPE_APP_CLOSED,

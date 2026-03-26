@@ -69,7 +69,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Exclude List"
+            android:text="Tracked Apps"
             android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
             android:textColor="?attr/colorPrimary"
             android:textStyle="bold"
@@ -78,7 +78,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Do not track activities for these packages. For example: com.android.chrome"
+            android:text="Only track app activity for these packages. Add a package name to start tracking it."
             android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
             android:textColor="?attr/colorOnSurfaceVariant"
             android:layout_marginBottom="16dp" />
@@ -94,7 +94,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 app:boxBackgroundMode="outline"
-                android:hint="Package name (e.g. com.whatsapp)">
+                android:hint="Add package (e.g. com.whatsapp)">
 
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/inputExcludedPackage"

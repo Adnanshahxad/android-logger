@@ -7,13 +7,24 @@ class SettingsManager(context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences("logger_settings", Context.MODE_PRIVATE)
 
     companion object {
-        private const val KEY_EXCLUDED_PACKAGES = "excluded_packages"
+        private const val KEY_INCLUDED_PACKAGES = "included_packages"
         private const val KEY_LOGGER_ENABLED = "logger_enabled"
 
-        private val DEFAULT_EXCLUDED_PACKAGES = setOf(
-            "com.logger",
-            "com.sec.android.app.launcher",
-            "com.android.intentresolver"
+        private val DEFAULT_INCLUDED_PACKAGES = setOf(
+            "com.twitter.android",
+            "com.facebook.lite",
+            "com.facebook.katana",
+            "com.instagram.android",
+            "com.instagram.lite",
+            "com.android.chrome",
+            "com.whatsapp.w4b",
+            "com.whatsapp",
+            "com.samsung.android.messaging",
+            "com.samsung.android.dialer",
+            "com.zhiliaoapp.musically",
+            "com.google.android.youtube",
+            "com.google.android.gm",
+            "com.snapchat.android"
         )
     }
 
@@ -21,19 +32,19 @@ class SettingsManager(context: Context) {
         get() = prefs.getBoolean(KEY_LOGGER_ENABLED, true)
         set(value) = prefs.edit().putBoolean(KEY_LOGGER_ENABLED, value).apply()
 
-    fun getExcludedPackages(): Set<String> {
-        return prefs.getStringSet(KEY_EXCLUDED_PACKAGES, DEFAULT_EXCLUDED_PACKAGES)?.toSet() ?: DEFAULT_EXCLUDED_PACKAGES
+    fun getIncludedPackages(): Set<String> {
+        return prefs.getStringSet(KEY_INCLUDED_PACKAGES, DEFAULT_INCLUDED_PACKAGES)?.toSet() ?: DEFAULT_INCLUDED_PACKAGES
     }
 
-    fun addExcludedPackage(packageName: String) {
-        val currentSet = getExcludedPackages().toMutableSet()
+    fun addIncludedPackage(packageName: String) {
+        val currentSet = getIncludedPackages().toMutableSet()
         currentSet.add(packageName.trim())
-        prefs.edit().putStringSet(KEY_EXCLUDED_PACKAGES, currentSet).apply()
+        prefs.edit().putStringSet(KEY_INCLUDED_PACKAGES, currentSet).apply()
     }
 
-    fun removeExcludedPackage(packageName: String) {
-        val currentSet = getExcludedPackages().toMutableSet()
+    fun removeIncludedPackage(packageName: String) {
+        val currentSet = getIncludedPackages().toMutableSet()
         currentSet.remove(packageName.trim())
-        prefs.edit().putStringSet(KEY_EXCLUDED_PACKAGES, currentSet).apply()
+        prefs.edit().putStringSet(KEY_INCLUDED_PACKAGES, currentSet).apply()
     }
 }

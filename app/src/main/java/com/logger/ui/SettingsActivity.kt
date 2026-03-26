@@ -52,7 +52,7 @@ class SettingsActivity : AppCompatActivity() {
 
             setupToolbar()
             setupControls()
-            setupExclusionList()
+            setupIncludeList()
         } catch (e: Exception) {
             Toast.makeText(this, "Crash prevented! Error: ${e.message}", Toast.LENGTH_LONG).show()
             e.printStackTrace()
@@ -108,9 +108,9 @@ class SettingsActivity : AppCompatActivity() {
         }
     }
 
-    private fun setupExclusionList() {
-        adapter = ExcludedPackageAdapter(settingsManager.getExcludedPackages().toList()) { pkgToRemove ->
-            settingsManager.removeExcludedPackage(pkgToRemove)
+    private fun setupIncludeList() {
+        adapter = ExcludedPackageAdapter(settingsManager.getIncludedPackages().toList().sorted()) { pkgToRemove ->
+            settingsManager.removeIncludedPackage(pkgToRemove)
             refreshList()
         }
 
@@ -120,7 +120,7 @@ class SettingsActivity : AppCompatActivity() {
         binding.btnAddExcluded.setOnClickListener {
             val pkg = binding.inputExcludedPackage.text.toString().trim()
             if (pkg.isNotEmpty()) {
-                settingsManager.addExcludedPackage(pkg)
+                settingsManager.addIncludedPackage(pkg)
                 binding.inputExcludedPackage.text?.clear()
                 refreshList()
             }
@@ -128,7 +128,7 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun refreshList() {
-        adapter.updateList(settingsManager.getExcludedPackages().toList())
+        adapter.updateList(settingsManager.getIncludedPackages().toList().sorted())
     }
 
     private fun showDatePickerForExport() {
