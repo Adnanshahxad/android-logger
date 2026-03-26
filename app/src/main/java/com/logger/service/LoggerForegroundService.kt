@@ -281,7 +281,7 @@ class LoggerForegroundService : Service() {
                             getDao().insertLog(closedEntry)
                         }
 
-                        // 2. Log new app opening & focus IF it is a logged app
+                        // 2. Log new app opening IF it is a logged app
                         if (isLoggedApp) {
                             val openedEntry = LogEntry(
                                 eventType = LogEntry.TYPE_APP_OPENED,
@@ -290,14 +290,6 @@ class LoggerForegroundService : Service() {
                                 timestamp = event.timeStamp
                             )
                             getDao().insertLog(openedEntry)
-
-                            val focusEntry = LogEntry(
-                                eventType = LogEntry.TYPE_APP_FOCUS,
-                                details = pkg,
-                                appName = friendlyName,
-                                timestamp = event.timeStamp
-                            )
-                            getDao().insertLog(focusEntry)
                         }
 
                         lastForegroundPackage = pkg
