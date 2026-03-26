@@ -29,7 +29,6 @@ abstract class AppDatabase : RoomDatabase() {
                     "logger_database_encrypted"
                 )
                 .openHelperFactory(factory)
-                .fallbackToDestructiveMigration()
                 .build().also { INSTANCE = it }
             }
         }

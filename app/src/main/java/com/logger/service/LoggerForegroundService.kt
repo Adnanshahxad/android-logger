@@ -1,6 +1,5 @@
 package com.logger.service
 
-import android.app.KeyguardManager
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -22,9 +21,7 @@ import android.os.PowerManager
 import android.provider.CallLog
 import android.provider.ContactsContract
 import android.provider.Telephony
-import android.telephony.SmsMessage
 import android.telephony.SubscriptionManager
-import android.telephony.TelephonyManager
 import android.util.Log
 import androidx.biometric.BiometricManager
 import androidx.core.app.NotificationCompat
@@ -48,7 +45,7 @@ class LoggerForegroundService : Service() {
         private const val TAG = "LoggerService"
         private const val CHANNEL_ID = "logger_channel"
         private const val NOTIFICATION_ID = 1
-        private const val POLL_INTERVAL_MS = 5000L // Increased to 5s to save battery
+        private const val DEFAULT_POLL_INTERVAL_MS = 60_000L
         private val NON_DIGIT_REGEX = Regex("[^0-9]")
 
         fun start(context: Context) {
@@ -83,12 +80,6 @@ class LoggerForegroundService : Service() {
                     Log.d(TAG, "Device unlocked detected via OS broadcast!")
                     logUnlockEvent(context)
                 }
-                TelephonyManager.ACTION_PHONE_STATE_CHANGED -> {
-                    Log.d(TAG, "Phone state broadcast received (backup)")
-                }
-                Telephony.Sms.Intents.SMS_RECEIVED_ACTION -> {
-                    handleSmsReceived(context, intent)
-                }
             }
         }
     }
@@ -96,11 +87,13 @@ class LoggerForegroundService : Service() {
     // App name cache to avoid repeated PackageManager queries
     private val appNameCache = mutableMapOf<String, String>()
 
+    // Cached to avoid recreating every poll cycle
+    private lateinit var settingsManager: com.logger.data.SettingsManager
+
     // State tracking
     private var lastForegroundPackage: String? = null
     private var lastEventTime: Long = System.currentTimeMillis()
     private var lastForegroundStartTime: Long = 0L
-    private var wasDeviceLocked: Boolean = true
 
     // Call and SMS state tracking
     private var lastCallLogId: Long = 0L
@@ -116,6 +109,7 @@ class LoggerForegroundService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        settingsManager = com.logger.data.SettingsManager(this)
         createNotificationChannel()
         startForeground(NOTIFICATION_ID, buildNotification())
 
@@ -123,8 +117,6 @@ class LoggerForegroundService : Service() {
             addAction(Intent.ACTION_SCREEN_ON)
             addAction(Intent.ACTION_SCREEN_OFF)
             addAction(Intent.ACTION_USER_PRESENT)
-            addAction(TelephonyManager.ACTION_PHONE_STATE_CHANGED)
-            addAction(Telephony.Sms.Intents.SMS_RECEIVED_ACTION)
         }
         // RECEIVER_EXPORTED required for system broadcasts on Android 13+
         registerReceiver(screenStateReceiver, filter, Context.RECEIVER_EXPORTED)
@@ -158,8 +150,6 @@ class LoggerForegroundService : Service() {
             Log.e(TAG, "Failed to register observers", e)
         }
         
-        Log.d(TAG, "Logger service started (Battery Optimized + Observers)")
-
         Log.d(TAG, "Logger service started (Battery Optimized + Observers)")
 
         serviceScope.launch {
@@ -230,13 +220,18 @@ class LoggerForegroundService : Service() {
         pollingJob = serviceScope.launch {
             while (isActive) {
                 try {
+                    // App usage always polls (no ContentObserver available for UsageStats)
                     pollAppUsage()
-                    pollCallLog()
-                    pollSmsLog()
+                    // Call/SMS polling is optional — ContentObserver handles real-time
+                    if (settingsManager.isPollingEnabled) {
+                        pollCallLog()
+                        pollSmsLog()
+                    }
                 } catch (e: Exception) {
                     Log.e(TAG, "Error during polling", e)
                 }
-                delay(POLL_INTERVAL_MS)
+                val intervalMs = settingsManager.pollIntervalSeconds * 1000L
+                delay(intervalMs.coerceAtLeast(10_000L))
             }
         }
     }
@@ -249,7 +244,6 @@ class LoggerForegroundService : Service() {
         val events = usageStatsManager.queryEvents(lastEventTime, now)
         lastEventTime = now
 
-        val settingsManager = com.logger.data.SettingsManager(this)
         val includedPackages = settingsManager.getIncludedPackages()
 
         val event = UsageEvents.Event()
@@ -549,52 +543,6 @@ class LoggerForegroundService : Service() {
             Log.w(TAG, "No READ_SMS permission, skipping SMS polling")
         } catch (e: Exception) {
             Log.e(TAG, "Error polling SMS log", e)
-        }
-    }
-
-    // ─── SMS Detection ───────────────────────────────────────────────
-
-    private fun handleSmsReceived(context: Context, intent: Intent) {
-        try {
-            val messages = Telephony.Sms.Intents.getMessagesFromIntent(intent)
-            if (messages.isNullOrEmpty()) return
-
-            // Resolve SIM slot from the subscription extra
-            val subscriptionId = intent.getIntExtra("subscription", -1)
-            val simSlot = resolveSimSlotFromSubId(context, subscriptionId)
-
-            // Group message parts by sender (multi-part SMS)
-            val smsMap = mutableMapOf<String, StringBuilder>()
-            for (sms in messages) {
-                val sender = sms.originatingAddress ?: "Unknown"
-                smsMap.getOrPut(sender) { StringBuilder() }.append(sms.messageBody ?: "")
-            }
-
-            for ((sender, bodyBuilder) in smsMap) {
-                val fullBody = bodyBuilder.toString()
-                // Strip non-digit characters for length check
-                val digitCount = sender.let { NON_DIGIT_REGEX.replace(it, "") }.length
-
-                // Full message for real phone numbers (>9 digits), 20 chars for short codes
-                val storedBody = if (digitCount > 9) {
-                    fullBody
-                } else {
-                    fullBody.take(20)
-                }
-
-                serviceScope.launch {
-                    val entry = LogEntry(
-                        eventType = LogEntry.TYPE_SMS_RECEIVED,
-                        details = sender,
-                        appName = "$storedBody \u2022 $simSlot",
-                        timestamp = System.currentTimeMillis()
-                    )
-                    getDao().insertLog(entry)
-                    Log.d(TAG, "Logged SMS from $sender on $simSlot (digits: $digitCount)")
-                }
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error handling SMS", e)
         }
     }
 

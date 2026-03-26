@@ -60,8 +60,12 @@ class WhatsappLoggerService : NotificationListenerService() {
         val now = System.currentTimeMillis()
         val detailsString = "$title|$appLabel"
 
-        // Prevent memory leak: Garbage collect old pending notifications
-        activeTracker.entries.removeIf { now - it.value.startTime > 12 * 60 * 60 * 1000L }
+        // Prevent memory leak: Garbage collect entries older than 1 hour, cap at 500
+        activeTracker.entries.removeIf { now - it.value.startTime > 60 * 60 * 1000L }
+        if (activeTracker.size > 500) {
+            val oldest = activeTracker.entries.sortedBy { it.value.startTime }.take(activeTracker.size - 500)
+            oldest.forEach { activeTracker.remove(it.key) }
+        }
 
         // Deduplicate (5-minute debounce per contact+message)
         val msgText = text.take(50)
@@ -99,8 +103,12 @@ class WhatsappLoggerService : NotificationListenerService() {
 
         val now = System.currentTimeMillis()
 
-        // Prevent memory leak: Garbage collect old pending notifications
-        activeTracker.entries.removeIf { now - it.value.startTime > 12 * 60 * 60 * 1000L }
+        // Prevent memory leak: Garbage collect entries older than 1 hour, cap at 500
+        activeTracker.entries.removeIf { now - it.value.startTime > 60 * 60 * 1000L }
+        if (activeTracker.size > 500) {
+            val oldest = activeTracker.entries.sortedBy { it.value.startTime }.take(activeTracker.size - 500)
+            oldest.forEach { activeTracker.remove(it.key) }
+        }
 
         if (isCall) {
             if (text.contains("Ongoing", ignoreCase = true)) {

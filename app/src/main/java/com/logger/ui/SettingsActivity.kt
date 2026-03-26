@@ -85,6 +85,27 @@ class SettingsActivity : AppCompatActivity() {
             }
         }
 
+        // Polling controls
+        binding.switchPolling.isChecked = settingsManager.isPollingEnabled
+        binding.inputPollInterval.setText(settingsManager.pollIntervalSeconds.toString())
+        updatePollingVisibility(settingsManager.isPollingEnabled)
+
+        binding.switchPolling.setOnCheckedChangeListener { _, isChecked ->
+            settingsManager.isPollingEnabled = isChecked
+            updatePollingVisibility(isChecked)
+            Toast.makeText(this, if (isChecked) "Polling enabled" else "Polling disabled — using ContentObserver only", Toast.LENGTH_SHORT).show()
+        }
+
+        binding.btnSavePollInterval.setOnClickListener {
+            val seconds = binding.inputPollInterval.text.toString().toIntOrNull()
+            if (seconds != null && seconds >= 10) {
+                settingsManager.pollIntervalSeconds = seconds
+                Toast.makeText(this, "Poll interval set to ${seconds}s", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(this, "Minimum interval is 10 seconds", Toast.LENGTH_SHORT).show()
+            }
+        }
+
         binding.btnClearLogs.setOnClickListener {
             MaterialAlertDialogBuilder(this)
                 .setTitle("Clear All Logs")
@@ -106,6 +127,10 @@ class SettingsActivity : AppCompatActivity() {
         binding.btnUploadCloud.setOnClickListener {
             showDatePickerForCloudSync()
         }
+    }
+
+    private fun updatePollingVisibility(enabled: Boolean) {
+        binding.layoutPollInterval.visibility = if (enabled) android.view.View.VISIBLE else android.view.View.GONE
     }
 
     private fun setupIncludeList() {
