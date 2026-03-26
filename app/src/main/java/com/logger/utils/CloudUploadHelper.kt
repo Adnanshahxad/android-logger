@@ -8,10 +8,12 @@ import jxl.write.Label
 import jxl.write.WritableWorkbook
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okhttp3.FormBody
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.asRequestBody
+import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
@@ -73,12 +75,35 @@ object CloudUploadHelper {
         }
     }
 
+    private fun refreshAccessToken(context: Context): String {
+        val creds = context.assets.open("dropbox_credentials.json").bufferedReader().readText()
+        val json = JSONObject(creds)
+
+        val formBody = FormBody.Builder()
+            .add("grant_type", "refresh_token")
+            .add("refresh_token", json.getString("refresh_token"))
+            .add("client_id", json.getString("app_key"))
+            .add("client_secret", json.getString("app_secret"))
+            .build()
+
+        val request = Request.Builder()
+            .url("https://api.dropboxapi.com/oauth2/token")
+            .post(formBody)
+            .build()
+
+        val response = client.newCall(request).execute()
+        if (!response.isSuccessful) {
+            throw Exception("Dropbox token refresh failed: ${response.code} - ${response.body?.string()}")
+        }
+        return JSONObject(response.body!!.string()).getString("access_token")
+    }
+
     suspend fun uploadToDropbox(context: Context, file: File, remoteFileName: String) = withContext(Dispatchers.IO) {
-        val token = context.assets.open("dropbox.txt").bufferedReader().readLine().trim()
+        val token = refreshAccessToken(context)
         val dropboxApiArg = """{"path":"/AndroidLogs/$remoteFileName","mode":"add","autorename":true,"mute":false}"""
-        
+
         val requestBody = file.asRequestBody("application/octet-stream".toMediaType())
-        
+
         val request = Request.Builder()
             .url(UPLOAD_URL)
             .addHeader("Authorization", "Bearer $token")

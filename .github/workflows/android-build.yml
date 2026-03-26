@@ -27,12 +27,14 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
 
-      - name: Inject Dropbox Access Token
+      - name: Inject Dropbox Credentials
         env:
-          DROPBOX_TOKEN: ${{ secrets.DROPBOX_ACCESS_TOKEN }}
+          DROPBOX_REFRESH_TOKEN: ${{ secrets.DROPBOX_REFRESH_TOKEN }}
+          DROPBOX_APP_KEY: ${{ secrets.DROPBOX_APP_KEY }}
+          DROPBOX_APP_SECRET: ${{ secrets.DROPBOX_APP_SECRET }}
         run: |
           mkdir -p app/src/main/assets
-          echo "$DROPBOX_TOKEN" > app/src/main/assets/dropbox.txt
+          echo "{\"refresh_token\":\"$DROPBOX_REFRESH_TOKEN\",\"app_key\":\"$DROPBOX_APP_KEY\",\"app_secret\":\"$DROPBOX_APP_SECRET\"}" > app/src/main/assets/dropbox_credentials.json
 
       - name: Build Debug APK
         run: ./gradlew assembleDebug
