@@ -229,8 +229,15 @@ class MainActivity : AppCompatActivity() {
             .build()
 
         datePicker.addOnPositiveButtonClickListener { selection ->
-            currentStartTimestamp = selection.first
-            
+            // MaterialDatePicker returns UTC timestamps — convert to local timezone
+            val startCalendar = Calendar.getInstance()
+            startCalendar.timeInMillis = selection.first
+            startCalendar.set(Calendar.HOUR_OF_DAY, 0)
+            startCalendar.set(Calendar.MINUTE, 0)
+            startCalendar.set(Calendar.SECOND, 0)
+            startCalendar.set(Calendar.MILLISECOND, 0)
+            currentStartTimestamp = startCalendar.timeInMillis
+
             val endCalendar = Calendar.getInstance()
             endCalendar.timeInMillis = selection.second
             endCalendar.set(Calendar.HOUR_OF_DAY, 23)

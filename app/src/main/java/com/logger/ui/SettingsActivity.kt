@@ -137,7 +137,15 @@ class SettingsActivity : AppCompatActivity() {
             .build()
             
         datePicker.addOnPositiveButtonClickListener { selection ->
-            exportStart = selection.first
+            // MaterialDatePicker returns UTC timestamps — convert to local timezone
+            val startCalendar = Calendar.getInstance()
+            startCalendar.timeInMillis = selection.first
+            startCalendar.set(Calendar.HOUR_OF_DAY, 0)
+            startCalendar.set(Calendar.MINUTE, 0)
+            startCalendar.set(Calendar.SECOND, 0)
+            startCalendar.set(Calendar.MILLISECOND, 0)
+            exportStart = startCalendar.timeInMillis
+
             val endCalendar = Calendar.getInstance()
             endCalendar.timeInMillis = selection.second
             endCalendar.set(Calendar.HOUR_OF_DAY, 23)
@@ -158,14 +166,22 @@ class SettingsActivity : AppCompatActivity() {
             .build()
             
         datePicker.addOnPositiveButtonClickListener { selection ->
-            val start = selection.first
+            // MaterialDatePicker returns UTC timestamps — convert to local timezone
+            val startCalendar = Calendar.getInstance()
+            startCalendar.timeInMillis = selection.first
+            startCalendar.set(Calendar.HOUR_OF_DAY, 0)
+            startCalendar.set(Calendar.MINUTE, 0)
+            startCalendar.set(Calendar.SECOND, 0)
+            startCalendar.set(Calendar.MILLISECOND, 0)
+            val start = startCalendar.timeInMillis
+
             val endCalendar = Calendar.getInstance()
             endCalendar.timeInMillis = selection.second
             endCalendar.set(Calendar.HOUR_OF_DAY, 23)
             endCalendar.set(Calendar.MINUTE, 59)
             endCalendar.set(Calendar.SECOND, 59)
             val end = endCalendar.timeInMillis
-            
+
             uploadToCloudSync(start, end)
         }
         datePicker.show(supportFragmentManager, "CLOUD_SYNC_DATE_PICKER")

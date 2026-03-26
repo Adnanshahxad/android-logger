@@ -18,7 +18,7 @@ abstract class AppDatabase : RoomDatabase() {
 
         fun getInstance(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
-                
+
                 // Construct a robust but hardcoded 256-bit AES encryption passphrase
                 val passphrase = SQLiteDatabase.getBytes("LoggerSuperSecretKey_2026".toCharArray())
                 val factory = SupportFactory(passphrase)
