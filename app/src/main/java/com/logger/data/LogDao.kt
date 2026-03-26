@@ -21,7 +21,7 @@ interface LogDao {
     """)
     fun getFilteredLogs(type: String?, pkg: String?, startTimestamp: Long, endTimestamp: Long): Flow<List<LogEntry>>
 
-    @Query("SELECT DISTINCT details FROM log_entries WHERE eventType IN ('APP_OPENED', 'APP_CLOSED', 'APP_FOCUS') ORDER BY details ASC")
+    @Query("SELECT DISTINCT details FROM log_entries WHERE eventType = 'APP_CLOSED' ORDER BY details ASC")
     fun getDistinctPackages(): Flow<List<String>>
 
     @Query("DELETE FROM log_entries")

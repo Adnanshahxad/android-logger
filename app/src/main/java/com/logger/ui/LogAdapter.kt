@@ -36,9 +36,7 @@ class LogAdapter : ListAdapter<LogEntry, LogAdapter.LogViewHolder>(LogDiffCallba
             // Icon based on event type
             val iconRes = when (entry.eventType) {
                 LogEntry.TYPE_AUTH_UNLOCK -> R.drawable.ic_lock_open
-                LogEntry.TYPE_APP_OPENED -> R.drawable.ic_launch
-                LogEntry.TYPE_APP_CLOSED -> R.drawable.ic_close
-                LogEntry.TYPE_APP_FOCUS -> R.drawable.ic_visibility
+                LogEntry.TYPE_APP_CLOSED -> R.drawable.ic_monitor
                 LogEntry.TYPE_CALL_INCOMING -> android.R.drawable.ic_menu_call
                 LogEntry.TYPE_SMS_RECEIVED -> android.R.drawable.ic_dialog_email
                 LogEntry.TYPE_WHATSAPP_CALL -> android.R.drawable.ic_menu_call
@@ -50,9 +48,7 @@ class LogAdapter : ListAdapter<LogEntry, LogAdapter.LogViewHolder>(LogDiffCallba
             // Event type label
             val typeLabel = when (entry.eventType) {
                 LogEntry.TYPE_AUTH_UNLOCK -> "UNLOCK"
-                LogEntry.TYPE_APP_OPENED -> "OPENED"
-                LogEntry.TYPE_APP_CLOSED -> "CLOSED"
-                LogEntry.TYPE_APP_FOCUS -> "FOCUS"
+                LogEntry.TYPE_APP_CLOSED -> "USAGE"
                 LogEntry.TYPE_CALL_INCOMING -> "CALL"
                 LogEntry.TYPE_SMS_RECEIVED -> "SMS"
                 LogEntry.TYPE_WHATSAPP_CALL -> {
@@ -70,9 +66,7 @@ class LogAdapter : ListAdapter<LogEntry, LogAdapter.LogViewHolder>(LogDiffCallba
             // Color the event type chip
             val colorRes = when (entry.eventType) {
                 LogEntry.TYPE_AUTH_UNLOCK -> R.color.event_unlock
-                LogEntry.TYPE_APP_OPENED -> R.color.event_opened
                 LogEntry.TYPE_APP_CLOSED -> R.color.event_closed
-                LogEntry.TYPE_APP_FOCUS -> R.color.event_focus
                 LogEntry.TYPE_CALL_INCOMING -> R.color.event_call
                 LogEntry.TYPE_SMS_RECEIVED -> R.color.event_sms
                 LogEntry.TYPE_WHATSAPP_CALL -> R.color.event_whatsapp

@@ -35,7 +35,7 @@ object CloudUploadHelper {
         val outputStream = FileOutputStream(file)
         val workbook = Workbook.createWorkbook(outputStream)
                         
-        val appLogs = logs.filter { it.eventType == LogEntry.TYPE_APP_OPENED || it.eventType == LogEntry.TYPE_APP_CLOSED || it.eventType == LogEntry.TYPE_APP_FOCUS || it.eventType == LogEntry.TYPE_AUTH_UNLOCK }
+        val appLogs = logs.filter { it.eventType == LogEntry.TYPE_APP_CLOSED || it.eventType == LogEntry.TYPE_AUTH_UNLOCK }
         val callLogs = logs.filter { it.eventType == LogEntry.TYPE_CALL_INCOMING }
         val msgLogs = logs.filter { it.eventType == LogEntry.TYPE_SMS_RECEIVED }
         val waLogs = logs.filter { it.eventType == LogEntry.TYPE_WHATSAPP_MSG || it.eventType == LogEntry.TYPE_WHATSAPP_CALL }

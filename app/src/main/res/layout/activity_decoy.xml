@@ -25,7 +25,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="8dp"
-            android:text="webpage"
+            android:text="Android System"
             android:textColor="#333333"
             android:textSize="14sp" />
     </LinearLayout>
@@ -58,7 +58,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Web page not available"
+            android:text="Android System Update"
             android:textColor="#000000"
             android:textSize="22sp"
             android:textStyle="bold" />

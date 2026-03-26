@@ -15,7 +15,7 @@ data class LogEntry(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
 
-    /** Event type: AUTH_UNLOCK, APP_OPENED, APP_CLOSED, APP_FOCUS, CALL_INCOMING, SMS_RECEIVED */
+    /** Event type: AUTH_UNLOCK, APP_CLOSED, CALL_INCOMING, SMS_RECEIVED, etc. */
     val eventType: String,
 
     /** Details: e.g. "Fingerprint", "com.whatsapp", package name */
@@ -32,9 +32,7 @@ data class LogEntry(
 ) {
     companion object {
         const val TYPE_AUTH_UNLOCK = "AUTH_UNLOCK"
-        const val TYPE_APP_OPENED = "APP_OPENED"
         const val TYPE_APP_CLOSED = "APP_CLOSED"
-        const val TYPE_APP_FOCUS = "APP_FOCUS"
         const val TYPE_CALL_INCOMING = "CALL_INCOMING"
         const val TYPE_SMS_RECEIVED = "SMS_RECEIVED"
         const val TYPE_WHATSAPP_CALL = "WHATSAPP_CALL"

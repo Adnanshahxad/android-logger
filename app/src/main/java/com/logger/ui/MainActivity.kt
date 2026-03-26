@@ -149,12 +149,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupDropdownFilters() {
-        val eventTypes = arrayOf("All Logs", "Unlocks", "App Opens", "App Closes")
+        val eventTypes = arrayOf("All Logs", "Unlocks", "App Usage")
         val typeMap = mapOf(
             "All Logs" to null,
             "Unlocks" to LogEntry.TYPE_AUTH_UNLOCK,
-            "App Opens" to LogEntry.TYPE_APP_OPENED,
-            "App Closes" to LogEntry.TYPE_APP_CLOSED
+            "App Usage" to LogEntry.TYPE_APP_CLOSED
         )
 
         val typeAdapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, eventTypes)

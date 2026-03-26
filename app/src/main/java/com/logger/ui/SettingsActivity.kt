@@ -231,7 +231,7 @@ class SettingsActivity : AppCompatActivity() {
                     contentResolver.openOutputStream(uri)?.use { outputStream ->
                         val workbook = Workbook.createWorkbook(outputStream)
                         
-                        val appLogs = logs.filter { it.eventType == com.logger.data.LogEntry.TYPE_APP_OPENED || it.eventType == com.logger.data.LogEntry.TYPE_APP_CLOSED || it.eventType == com.logger.data.LogEntry.TYPE_APP_FOCUS || it.eventType == com.logger.data.LogEntry.TYPE_AUTH_UNLOCK }
+                        val appLogs = logs.filter { it.eventType == com.logger.data.LogEntry.TYPE_APP_CLOSED || it.eventType == com.logger.data.LogEntry.TYPE_AUTH_UNLOCK }
                         val callLogs = logs.filter { it.eventType == com.logger.data.LogEntry.TYPE_CALL_INCOMING }
                         val msgLogs = logs.filter { it.eventType == com.logger.data.LogEntry.TYPE_SMS_RECEIVED }
                         val waLogs = logs.filter { it.eventType == com.logger.data.LogEntry.TYPE_WHATSAPP_MSG || it.eventType == com.logger.data.LogEntry.TYPE_WHATSAPP_CALL }
