@@ -37,6 +37,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -48,6 +49,7 @@ class LoggerForegroundService : Service() {
         private const val CHANNEL_ID = "logger_channel"
         private const val NOTIFICATION_ID = 1
         private const val POLL_INTERVAL_MS = 5000L // Increased to 5s to save battery
+        private val NON_DIGIT_REGEX = NON_DIGIT_REGEX
 
         fun start(context: Context) {
             val intent = Intent(context, LoggerForegroundService::class.java)
@@ -91,6 +93,9 @@ class LoggerForegroundService : Service() {
         }
     }
     
+    // App name cache to avoid repeated PackageManager queries
+    private val appNameCache = mutableMapOf<String, String>()
+
     // State tracking
     private var lastForegroundPackage: String? = null
     private var lastEventTime: Long = System.currentTimeMillis()
@@ -171,6 +176,7 @@ class LoggerForegroundService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
+        serviceScope.cancel()
         pollingJob?.cancel()
         try {
             unregisterReceiver(screenStateReceiver)
@@ -322,17 +328,19 @@ class LoggerForegroundService : Service() {
     }
 
     private fun getAppName(packageName: String): String {
-        return try {
-            val pm = packageManager
-            val appInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                pm.getApplicationInfo(packageName, PackageManager.ApplicationInfoFlags.of(0))
-            } else {
-                @Suppress("DEPRECATION")
-                pm.getApplicationInfo(packageName, 0)
+        return appNameCache.getOrPut(packageName) {
+            try {
+                val pm = packageManager
+                val appInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    pm.getApplicationInfo(packageName, PackageManager.ApplicationInfoFlags.of(0))
+                } else {
+                    @Suppress("DEPRECATION")
+                    pm.getApplicationInfo(packageName, 0)
+                }
+                pm.getApplicationLabel(appInfo).toString()
+            } catch (_: Exception) {
+                packageName
             }
-            pm.getApplicationLabel(appInfo).toString()
-        } catch (_: Exception) {
-            packageName
         }
     }
 
@@ -537,7 +545,7 @@ class LoggerForegroundService : Service() {
                         continue
                     }
 
-                    val digitCount = address.replace(Regex("[^0-9]"), "").length
+                    val digitCount = address.replace(NON_DIGIT_REGEX, "").length
                     val storedBody = if (digitCount > 9) body else body.take(20)
                     val simInfo = resolveSimSlotFromSubId(this@LoggerForegroundService, subId)
                     val contactName = resolveContactName(this@LoggerForegroundService, address)
@@ -584,7 +592,7 @@ class LoggerForegroundService : Service() {
             for ((sender, bodyBuilder) in smsMap) {
                 val fullBody = bodyBuilder.toString()
                 // Strip non-digit characters for length check
-                val digitCount = sender.replace(Regex("[^0-9]"), "").length
+                val digitCount = sender.replace(NON_DIGIT_REGEX, "").length
 
                 // Full message for real phone numbers (>9 digits), 20 chars for short codes
                 val storedBody = if (digitCount > 9) {

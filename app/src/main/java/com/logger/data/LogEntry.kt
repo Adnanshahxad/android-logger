@@ -7,7 +7,8 @@ import androidx.room.PrimaryKey
     tableName = "log_entries",
     indices = [
         androidx.room.Index(value = ["timestamp"]),
-        androidx.room.Index(value = ["eventType", "timestamp"])
+        androidx.room.Index(value = ["eventType", "timestamp"]),
+        androidx.room.Index(value = ["details"])
     ]
 )
 data class LogEntry(

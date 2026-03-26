@@ -9,6 +9,7 @@ import com.logger.data.LogEntry
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 
 class WhatsappLoggerService : NotificationListenerService() {
@@ -169,6 +170,11 @@ class WhatsappLoggerService : NotificationListenerService() {
                 Log.d(TAG, "Ended tracked WA call: ${callInfo.contactName}, duration: ${duration}ms")
             }
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        serviceScope.cancel()
     }
 
     private fun insertLog(entry: LogEntry) {
