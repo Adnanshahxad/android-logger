@@ -69,11 +69,13 @@ class LoggerForegroundService : Service() {
         override fun onReceive(context: Context, intent: Intent) {
             when (intent.action) {
                 Intent.ACTION_SCREEN_OFF -> {
-                    Log.d(TAG, "Screen off, pausing tracking loop to save battery")
+                    Log.d(TAG, "Screen off, pausing polling to save battery")
                     pollingJob?.cancel()
+                    // ContentObservers stay active — they're event-driven and needed for calls/SMS while screen off
                 }
                 Intent.ACTION_SCREEN_ON -> {
-                    Log.d(TAG, "Screen on, resuming tracking loop")
+                    Log.d(TAG, "Screen on, resuming polling")
+                    cachedIncludedPackages = settingsManager.getIncludedPackages()
                     startPolling()
                 }
                 Intent.ACTION_USER_PRESENT -> {
@@ -87,8 +89,14 @@ class LoggerForegroundService : Service() {
     // App name cache to avoid repeated PackageManager queries
     private val appNameCache = mutableMapOf<String, String>()
 
+    // Contact name cache to avoid repeated ContactsContract lookups
+    private val contactNameCache = mutableMapOf<String, String?>()
+
     // Cached to avoid recreating every poll cycle
     private lateinit var settingsManager: com.logger.data.SettingsManager
+
+    // Cached include list — refreshed on screen on
+    private var cachedIncludedPackages: Set<String> = emptySet()
 
     // State tracking
     private var lastForegroundPackage: String? = null
@@ -110,6 +118,7 @@ class LoggerForegroundService : Service() {
     override fun onCreate() {
         super.onCreate()
         settingsManager = com.logger.data.SettingsManager(this)
+        cachedIncludedPackages = settingsManager.getIncludedPackages()
         createNotificationChannel()
         startForeground(NOTIFICATION_ID, buildNotification())
 
@@ -244,18 +253,13 @@ class LoggerForegroundService : Service() {
         val events = usageStatsManager.queryEvents(lastEventTime, now)
         lastEventTime = now
 
-        val includedPackages = settingsManager.getIncludedPackages()
+        val includedPackages = cachedIncludedPackages
 
         val event = UsageEvents.Event()
         while (events.hasNextEvent()) {
             events.getNextEvent(event)
 
             val pkg = event.packageName
-
-            // Only log events for packages in the include list
-            val isLoggedApp = includedPackages.contains(pkg)
-
-            val friendlyName = getAppName(pkg)
 
             when (event.eventType) {
                 UsageEvents.Event.ACTIVITY_RESUMED -> {
@@ -284,12 +288,12 @@ class LoggerForegroundService : Service() {
                     // App went to background
                     if (pkg == lastForegroundPackage) {
                         // Only log if it's one of our logged apps
-                        if (isLoggedApp) {
+                        if (includedPackages.contains(pkg)) {
                             val sessionDuration = event.timeStamp - lastForegroundStartTime
                             val closedEntry = LogEntry(
                                 eventType = LogEntry.TYPE_APP_CLOSED,
                                 details = pkg,
-                                appName = friendlyName,
+                                appName = getAppName(pkg),
                                 durationMillis = if (sessionDuration > 0) sessionDuration else null,
                                 timestamp = event.timeStamp
                             )
@@ -361,11 +365,15 @@ class LoggerForegroundService : Service() {
 
     private fun resolveContactName(context: Context, phoneNumber: String): String? {
         if (phoneNumber.isBlank() || phoneNumber == "Unknown") return null
+
+        // Return cached result if available
+        if (contactNameCache.containsKey(phoneNumber)) return contactNameCache[phoneNumber]
+
         // Check for READ_CONTACTS permission
         if (context.checkSelfPermission(android.Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
             return null
         }
-        
+
         var contactName: String? = null
         try {
             val uri = Uri.withAppendedPath(ContactsContract.PhoneLookup.CONTENT_FILTER_URI, Uri.encode(phoneNumber))
@@ -378,6 +386,7 @@ class LoggerForegroundService : Service() {
         } catch (e: Exception) {
             Log.e(TAG, "Error resolving contact name for $phoneNumber", e)
         }
+        contactNameCache[phoneNumber] = contactName
         return contactName
     }
 

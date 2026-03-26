@@ -46,7 +46,7 @@ class LoggerApp : Application() {
 
         WorkManager.getInstance(this).enqueueUniquePeriodicWork(
             "DailyExportJob",
-            ExistingPeriodicWorkPolicy.UPDATE,
+            ExistingPeriodicWorkPolicy.KEEP,
             dailyWorkRequest
         )
     }
