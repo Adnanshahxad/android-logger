@@ -15,7 +15,7 @@ interface LogDao {
         SELECT * FROM log_entries 
         WHERE (:type IS NULL OR eventType = :type) 
           AND (:pkg IS NULL OR details = :pkg) 
-          AND eventType NOT IN ('CALL_INCOMING', 'SMS_RECEIVED', 'WHATSAPP_CALL', 'WHATSAPP_MSG', 'TIKTOK_MSG', 'INSTAGRAM_MSG')
+          AND eventType NOT IN ('CALL_INCOMING', 'SMS_RECEIVED', 'WHATSAPP_CALL', 'WHATSAPP_MSG', 'TIKTOK_MSG', 'INSTAGRAM_MSG', 'FACEBOOK_MSG')
           AND timestamp BETWEEN :startTimestamp AND :endTimestamp 
         ORDER BY timestamp DESC
     """)
@@ -41,6 +41,9 @@ interface LogDao {
 
     @Query("SELECT * FROM log_entries WHERE eventType = 'INSTAGRAM_MSG' AND timestamp BETWEEN :startTimestamp AND :endTimestamp ORDER BY timestamp DESC")
     fun getInstagramLogs(startTimestamp: Long, endTimestamp: Long): Flow<List<LogEntry>>
+
+    @Query("SELECT * FROM log_entries WHERE eventType = 'FACEBOOK_MSG' AND timestamp BETWEEN :startTimestamp AND :endTimestamp ORDER BY timestamp DESC")
+    fun getFacebookLogs(startTimestamp: Long, endTimestamp: Long): Flow<List<LogEntry>>
 
     @Query("SELECT * FROM log_entries WHERE timestamp BETWEEN :startTimestamp AND :endTimestamp ORDER BY timestamp DESC")
     suspend fun getAllLogsInRange(startTimestamp: Long, endTimestamp: Long): List<LogEntry>

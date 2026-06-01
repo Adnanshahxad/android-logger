@@ -21,7 +21,8 @@ class WhatsappLoggerService : NotificationListenerService() {
         private val WHATSAPP_PACKAGES = setOf("com.whatsapp", "com.whatsapp.w4b")
         private val TIKTOK_PACKAGES = setOf("com.zhiliaoapp.musically", "com.ss.android.ugc.trill")
         private val INSTAGRAM_PACKAGES = setOf("com.instagram.android")
-        private val TRACKED_PACKAGES = WHATSAPP_PACKAGES + TIKTOK_PACKAGES + INSTAGRAM_PACKAGES
+        private val FACEBOOK_PACKAGES = setOf("com.facebook.katana", "com.facebook.lite", "com.facebook.orca", "com.facebook.mlite")
+        private val TRACKED_PACKAGES = WHATSAPP_PACKAGES + TIKTOK_PACKAGES + INSTAGRAM_PACKAGES + FACEBOOK_PACKAGES
     }
     
     // Map of notification ID to Call Info (ContactName, StartTime)
@@ -48,6 +49,7 @@ class WhatsappLoggerService : NotificationListenerService() {
             in WHATSAPP_PACKAGES -> handleWhatsApp(sbn, packageName, title, text)
             in TIKTOK_PACKAGES -> handleSocialNotification(sbn, title, text, "TikTok", LogEntry.TYPE_TIKTOK_MSG)
             in INSTAGRAM_PACKAGES -> handleSocialNotification(sbn, title, text, "Instagram", LogEntry.TYPE_INSTAGRAM_MSG)
+            in FACEBOOK_PACKAGES -> handleSocialNotification(sbn, title, text, "Facebook", LogEntry.TYPE_FACEBOOK_MSG)
         }
     }
 

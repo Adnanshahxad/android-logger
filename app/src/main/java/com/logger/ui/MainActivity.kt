@@ -148,6 +148,10 @@ class MainActivity : AppCompatActivity() {
                 binding.filterContainer.visibility = View.GONE
                 observeInstagramLogs()
             }
+            6 -> {
+                binding.filterContainer.visibility = View.GONE
+                observeFacebookLogs()
+            }
         }
     }
 
@@ -194,14 +198,15 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupBottomNavigation() {
-        val tabTitles = listOf("App Activity", "Calls", "Messages", "WhatsApp", "TikTok", "Instagram")
+        val tabTitles = listOf("App Activity", "Calls", "Messages", "WhatsApp", "TikTok", "Instagram", "Facebook")
         val tabIcons = listOf(
             R.drawable.ic_monitor,
             R.drawable.ic_phone,
             R.drawable.ic_sms,
             android.R.drawable.sym_action_chat,
             android.R.drawable.ic_menu_slideshow,
-            android.R.drawable.ic_menu_camera
+            android.R.drawable.ic_menu_camera,
+            android.R.drawable.ic_menu_share
         )
 
         for (i in tabTitles.indices) {
@@ -257,6 +262,8 @@ class MainActivity : AppCompatActivity() {
                 observeTiktokLogs()
             } else if (activeTab == 5) {
                 observeInstagramLogs()
+            } else if (activeTab == 6) {
+                observeFacebookLogs()
             } else {
                 observeLogs()
             }
@@ -347,6 +354,21 @@ class MainActivity : AppCompatActivity() {
         val dao = (application as LoggerApp).database.logDao()
         observeJob = lifecycleScope.launch {
             dao.getInstagramLogs(
+                startTimestamp = currentStartTimestamp,
+                endTimestamp = currentEndTimestamp
+            ).collectLatest { logs ->
+                logAdapter.submitList(logs)
+                binding.emptyView.visibility = if (logs.isEmpty()) View.VISIBLE else View.GONE
+                binding.recyclerViewLogs.visibility = if (logs.isEmpty()) View.GONE else View.VISIBLE
+            }
+        }
+    }
+
+    private fun observeFacebookLogs() {
+        observeJob?.cancel()
+        val dao = (application as LoggerApp).database.logDao()
+        observeJob = lifecycleScope.launch {
+            dao.getFacebookLogs(
                 startTimestamp = currentStartTimestamp,
                 endTimestamp = currentEndTimestamp
             ).collectLatest { logs ->
