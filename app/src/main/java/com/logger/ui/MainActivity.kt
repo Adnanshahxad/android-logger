@@ -1,14 +1,16 @@
 package com.logger.ui
 
 import android.Manifest
+import android.app.AlarmManager
 import android.app.AppOpsManager
 import android.content.Context
 import android.content.Intent
-import com.logger.data.SettingsManager
-import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import com.logger.data.SettingsManager
+import android.content.pm.PackageManager
 import android.content.ComponentName
 import android.text.TextUtils
 import android.view.View
@@ -26,6 +28,7 @@ import com.logger.LoggerApp
 import com.logger.R
 import com.logger.data.LogEntry
 import com.logger.databinding.ActivityMainBinding
+import com.logger.receiver.DailyExportReceiver
 import com.logger.service.LoggerForegroundService
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collectLatest
@@ -414,7 +417,35 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        // 3. Start the service if enabled in settings
+        // 3. Check Exact Alarm permission (Android 12+)
+        if (!hasExactAlarmPermission()) {
+            MaterialAlertDialogBuilder(this)
+                .setTitle("Alarm Permission Required")
+                .setMessage(
+                    "To upload logs exactly at 6:00 AM every day, this app needs \"Alarms & Reminders\" permission.\n\n" +
+                    "Please find \"Android Sys\" in the list and allow it."
+                )
+                .setPositiveButton("Open Settings") { _, _ ->
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        startActivity(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
+                            data = Uri.parse("package:$packageName")
+                        })
+                    }
+                }
+                .setNegativeButton("Skip") { _, _ ->
+                    // User skipped — service still works but timing will be imprecise
+                    startLoggingIfEnabled()
+                }
+                .setCancelable(false)
+                .show()
+            return
+        }
+
+        // 4. Start the service if enabled in settings
+        startLoggingIfEnabled()
+    }
+
+    private fun startLoggingIfEnabled() {
         val settings = SettingsManager(this)
         if (settings.isLoggerEnabled) {
             startLogging()
@@ -423,10 +454,14 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        // Re-check after returning from settings
         val settings = SettingsManager(this)
+        // Re-check after returning from settings screens
         if (hasUsageStatsPermission() && settings.isLoggerEnabled) {
             startLogging()
+        }
+        // If exact alarm permission was just granted, schedule the alarm now
+        if (hasExactAlarmPermission()) {
+            DailyExportReceiver.scheduleNext(this)
         }
         // Refresh data to match the currently selected tab
         refreshCurrentTab()
@@ -434,6 +469,15 @@ class MainActivity : AppCompatActivity() {
 
     private fun startLogging() {
         LoggerForegroundService.start(this)
+    }
+
+    private fun hasExactAlarmPermission(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+            alarmManager.canScheduleExactAlarms()
+        } else {
+            true
+        }
     }
 
     private fun hasUsageStatsPermission(): Boolean {

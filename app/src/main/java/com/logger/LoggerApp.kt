@@ -1,54 +1,35 @@
 package com.logger
 
+import android.app.AlarmManager
 import android.app.Application
-import androidx.work.Constraints
-import androidx.work.ExistingPeriodicWorkPolicy
-import androidx.work.NetworkType
-import androidx.work.PeriodicWorkRequestBuilder
-import androidx.work.WorkManager
+import android.os.Build
 import com.logger.data.AppDatabase
-import com.logger.service.DailyExportWorker
-import java.util.Calendar
-import java.util.concurrent.TimeUnit
+import com.logger.receiver.DailyExportReceiver
 
 class LoggerApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        scheduleDailyExport()
+        // Schedule the daily 6 AM export alarm.
+        // On Android 12+, this requires SCHEDULE_EXACT_ALARM permission.
+        // If not granted, the alarm is skipped — MainActivity will prompt the user.
+        if (hasExactAlarmPermission()) {
+            DailyExportReceiver.scheduleNext(this)
+        }
     }
 
-    private fun scheduleDailyExport() {
-        val currentDate = Calendar.getInstance()
-        val dueDate = Calendar.getInstance()
-        dueDate.set(Calendar.HOUR_OF_DAY, 6)
-        dueDate.set(Calendar.MINUTE, 0)
-        dueDate.set(Calendar.SECOND, 0)
-
-        if (dueDate.before(currentDate)) {
-            dueDate.add(Calendar.HOUR_OF_DAY, 24)
+    /**
+     * Returns true if the app can schedule exact alarms.
+     * On Android < 12, exact alarms are always allowed.
+     * On Android 12+, requires the user to grant SCHEDULE_EXACT_ALARM in Settings.
+     */
+    fun hasExactAlarmPermission(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val alarmManager = getSystemService(ALARM_SERVICE) as AlarmManager
+            alarmManager.canScheduleExactAlarms()
+        } else {
+            true
         }
-
-        val timeDiff = dueDate.timeInMillis - currentDate.timeInMillis
-        val constraints = Constraints.Builder()
-            .setRequiredNetworkType(NetworkType.CONNECTED)
-            .build()
-
-        val dailyWorkRequest = PeriodicWorkRequestBuilder<DailyExportWorker>(24, TimeUnit.HOURS)
-            .setInitialDelay(timeDiff, TimeUnit.MILLISECONDS)
-            .setConstraints(constraints)
-            .setBackoffCriteria(
-                androidx.work.BackoffPolicy.EXPONENTIAL,
-                1,
-                TimeUnit.HOURS
-            )
-            .build()
-
-        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
-            "DailyExportJob",
-            ExistingPeriodicWorkPolicy.KEEP,
-            dailyWorkRequest
-        )
     }
 
     val database: AppDatabase by lazy {

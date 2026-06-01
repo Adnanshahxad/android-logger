@@ -16,6 +16,7 @@
     <uses-permission android:name="android.permission.READ_CALL_LOG" />
     <uses-permission android:name="android.permission.READ_SMS" />
     <uses-permission android:name="android.permission.READ_CONTACTS" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
 
     <application
         android:name=".LoggerApp"
@@ -75,6 +76,15 @@
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Daily Export Alarm Receiver -->
+        <receiver
+            android:name=".receiver.DailyExportReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.logger.action.DAILY_EXPORT" />
             </intent-filter>
         </receiver>
 
